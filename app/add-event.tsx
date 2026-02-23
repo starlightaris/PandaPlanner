@@ -1,7 +1,7 @@
 import { View, Text, StyleSheet, ScrollView } from "react-native";
 import { Colors } from "./theme/colors";
-import AppInput from "./components/AppInput";
-import PrimaryButton from "./components/PrimaryButton";
+import AppInput from "./(components)/AppInput";
+import PrimaryButton from "./(components)/PrimaryButton";
 import { useState } from "react";
 
 export default function AddEvent() {
