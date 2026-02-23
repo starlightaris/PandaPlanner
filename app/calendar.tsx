@@ -1,7 +1,6 @@
-import React from "react";
 import { View, Text, StyleSheet } from "react-native";
 
-export default function CalendarScreen() {
+export default function Calendar() {
   return (
     <View style={styles.container}>
       <Text style={styles.text}>Calendar coming soon 📅</Text>
