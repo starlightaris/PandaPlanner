@@ -5,34 +5,8 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="2da5ed9d-ae6b-466f-b89c-6fa81a4c350b" name="Changes" comment="">
-      <change afterPath="$PROJECT_DIR$/app/components/EventCard.tsx" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/app/components/PrimaryButton.tsx" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/app/navigation/AppNavigator.tsx" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/app/screens/AddEventScreen.tsx" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/app/screens/CalendarScreen.tsx" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/app/screens/SettingsScreen.tsx" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/app/screens/TodoScreen.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/(tabs)/_layout.tsx" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/(tabs)/explore.tsx" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/(tabs)/index.tsx" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/_layout.tsx" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/modal.tsx" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/components/external-link.tsx" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/components/haptic-tab.tsx" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/components/hello-wave.tsx" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/components/parallax-scroll-view.tsx" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/components/themed-text.tsx" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/components/themed-view.tsx" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/components/ui/collapsible.tsx" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/components/ui/icon-symbol.ios.tsx" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/components/ui/icon-symbol.tsx" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/constants/theme.ts" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/hooks/use-color-scheme.ts" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/hooks/use-color-scheme.web.ts" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/hooks/use-theme-color.ts" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/package-lock.json" beforeDir="false" afterPath="$PROJECT_DIR$/package-lock.json" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/package.json" beforeDir="false" afterPath="$PROJECT_DIR$/package.json" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/scripts/reset-project.js" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/navigation/AppNavigator.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/app/navigation/AppNavigator.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/screens/HomeScreen.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/app/screens/HomeScreen.tsx" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -68,11 +42,13 @@
   </component>
   <component name="PropertiesComponent"><![CDATA[{
   "keyToString": {
+    "ASKED_SHARE_PROJECT_CONFIGURATION_FILES": "true",
     "ModuleVcsDetector.initialDetectionPerformed": "true",
     "RunOnceActivity.ShowReadmeOnStart": "true",
     "RunOnceActivity.cidr.known.project.marker": "true",
     "RunOnceActivity.git.unshallow": "true",
     "RunOnceActivity.readMode.enableVisualFormatting": "true",
+    "SHARE_PROJECT_CONFIGURATION_FILES": "true",
     "cf.first.check.clang-format": "false",
     "cidr.known.project.marker": "true",
     "git-widget-placeholder": "pavani",
