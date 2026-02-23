@@ -9,15 +9,50 @@ export default function TabsLayout() {
   return (
     <>
       <Tabs
-        screenOptions={{
+        screenOptions={({ route }) => ({
           headerShown: false,
+
           tabBarStyle: styles.tabBar,
-        }}
+
+          tabBarActiveTintColor: Colors.primary,
+          tabBarInactiveTintColor: "#999",
+
+          tabBarIcon: ({ color, size }) => {
+            let iconName: any;
+
+            if (route.name === "index") {
+              iconName = "home";
+            } else if (route.name === "calendar") {
+              iconName = "calendar";
+            } else if (route.name === "todo") {
+              iconName = "checkmark-circle";
+            } else if (route.name === "settings") {
+              iconName = "settings";
+            }
+
+            return (
+              <Ionicons
+                name={iconName}
+                size={size}
+                color={color}
+              />
+            );
+          },
+        })}
       >
         <Tabs.Screen name="index" options={{ title: "Home" }} />
-        <Tabs.Screen name="calendar" options={{ title: "Calendar" }} />
+
+        <Tabs.Screen
+          name="calendar"
+          options={{ title: "Calendar" }}
+        />
+
         <Tabs.Screen name="todo" options={{ title: "Todo" }} />
-        <Tabs.Screen name="settings" options={{ title: "Settings" }} />
+
+        <Tabs.Screen
+          name="settings"
+          options={{ title: "Settings" }}
+        />
       </Tabs>
 
       {/* Floating Button */}
@@ -54,8 +89,5 @@ const styles = StyleSheet.create({
     alignItems: "center",
 
     elevation: 5,
-    shadowColor: "#000",
-    shadowOpacity: 0.2,
-    shadowRadius: 5,
   },
 });
