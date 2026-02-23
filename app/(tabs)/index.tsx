@@ -1,5 +1,6 @@
 import { View, Text, StyleSheet } from "react-native";
 import { Colors } from "../theme/colors";
+import EventCard from "../(components)/EventCard";
 
 export default function Home() {
   return (
@@ -15,9 +16,18 @@ export default function Home() {
           No events yet — enjoy your free time ✨
         </Text>
       </View>
+
+      <EventCard
+        title="Team Meeting"
+        location="Office"
+        date="2026-02-23"
+        startTime="09:00"
+        endTime="10:00"
+      />
     </View>
   );
 }
+// hardcoded event card. fix later
 
 const styles = StyleSheet.create({
   container: {
