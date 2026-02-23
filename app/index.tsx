@@ -1,12 +1,20 @@
 import { View, Text, StyleSheet } from "react-native";
+import { Colors } from "./theme/colors";
 
 export default function Home() {
   return (
     <View style={styles.container}>
       <Text style={styles.title}>🐼 PandaPlanner</Text>
       <Text style={styles.subtitle}>
-        Smart way to organize your schedule
+        Your smart schedule companion
       </Text>
+
+      <View style={styles.card}>
+        <Text style={styles.cardTitle}>Today</Text>
+        <Text style={styles.cardText}>
+          No events yet — enjoy your free time ✨
+        </Text>
+      </View>
     </View>
   );
 }
@@ -14,17 +22,30 @@ export default function Home() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: "#fff",
+    backgroundColor: Colors.background,
+    padding: 20,
   },
   title: {
     fontSize: 28,
-    fontWeight: "bold",
+    fontWeight: "700",
+    color: Colors.textPrimary,
   },
   subtitle: {
-    marginTop: 10,
+    marginTop: 6,
+    color: Colors.textSecondary,
+    marginBottom: 24,
+  },
+  card: {
+    backgroundColor: Colors.card,
+    padding: 20,
+    borderRadius: 18,
+  },
+  cardTitle: {
+    fontWeight: "600",
     fontSize: 16,
-    color: "#666",
+    marginBottom: 6,
+  },
+  cardText: {
+    color: Colors.textSecondary,
   },
 });
