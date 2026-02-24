@@ -1,49 +1,139 @@
-import { View, Text, StyleSheet, FlatList, Pressable } from "react-native";
+import { View, Text, StyleSheet, FlatList, Pressable, TextInput } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { Colors } from "../theme/colors";
-
-const todos = [
-  { id: "1", title: "Finish Assignment", done: false },
-  { id: "2", title: "Gym Workout", done: true },
-];
+import { useState } from "react";
 
 export default function TodoScreen() {
-  return (
-    <View style={styles.container}>
 
-      <Text style={styles.title}>Todo List</Text>
+const [todos, setTodos] = useState([
+  { id: "1", title: "Finish Assignment", done: false },
+  { id: "2", title: "Gym Workout", done: true },
+]);
 
-      <FlatList
-        data={todos}
-        keyExtractor={(item) => item.id}
-        renderItem={({ item }) => (
-          <View style={styles.todoItem}>
+const [adding, setAdding] = useState(false);
 
-            <Ionicons
-              name={
-                item.done
-                  ? "checkbox"
-                  : "square-outline"
-              }
-              size={24}
-              color={Colors.primary}
-            />
+const [newTodo, setNewTodo] = useState("");
 
-            <Text style={styles.todoText}>
-              {item.title}
-            </Text>
 
-          </View>
-        )}
-      />
+function addTodo(){
 
-      <Pressable style={styles.fab}>
-        <Ionicons name="add" size={28} color="white" />
-      </Pressable>
+if(!newTodo.trim()) return;
 
-    </View>
-  );
+setTodos(prev => [
+  {
+    id: Date.now().toString(),
+    title: newTodo,
+    done: false
+  },
+  ...prev
+]);
+
+setNewTodo("");
+
+setAdding(false);
+
 }
+
+
+return (
+<View style={styles.container}>
+
+
+{/* HEADER */}
+
+<View style={styles.header}>
+
+<Text style={styles.title}>
+Todo List
+</Text>
+
+
+<Pressable
+onPress={() => setAdding(true)}
+>
+
+<Ionicons
+name="add-circle"
+size={28}
+color={Colors.primary}
+/>
+
+</Pressable>
+
+
+</View>
+
+
+
+{/* INPUT */}
+
+{adding && (
+
+<TextInput
+
+style={styles.input}
+
+placeholder="Enter new task..."
+
+value={newTodo}
+
+onChangeText={setNewTodo}
+
+autoFocus
+
+onSubmitEditing={addTodo}
+
+/>
+
+)}
+
+
+
+{/* LIST */}
+
+<FlatList
+
+data={todos}
+
+keyExtractor={(item) => item.id}
+
+renderItem={({ item }) => (
+
+<View style={styles.todoItem}>
+
+
+<Ionicons
+
+name={
+item.done
+? "checkbox"
+: "square-outline"
+}
+
+size={24}
+
+color={Colors.primary}
+
+/>
+
+
+<Text style={styles.todoText}>
+{item.title}
+</Text>
+
+
+</View>
+
+)}
+
+/>
+
+
+</View>
+
+);
+}
+
 
 const styles = StyleSheet.create({
 
@@ -53,10 +143,23 @@ backgroundColor: Colors.background,
 padding: 20,
 },
 
+header:{
+flexDirection:"row",
+justifyContent:"space-between",
+alignItems:"center",
+marginBottom:16
+},
+
 title: {
 fontSize: 26,
 fontWeight: "700",
-marginBottom: 20,
+},
+
+input:{
+backgroundColor:"white",
+padding:14,
+borderRadius:14,
+marginBottom:16
 },
 
 todoItem: {
@@ -71,15 +174,6 @@ marginBottom: 10,
 todoText: {
 marginLeft: 12,
 fontSize: 16,
-},
-
-fab: {
-position: "absolute",
-right: 20,
-bottom: 20,
-backgroundColor: Colors.primary,
-padding: 16,
-borderRadius: 50,
 },
 
 });
