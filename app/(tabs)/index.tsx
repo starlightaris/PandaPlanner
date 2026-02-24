@@ -1,6 +1,9 @@
 import { View, Text, StyleSheet } from "react-native";
 import { Colors } from "../theme/colors";
 import EventCard from "../(components)/EventCard";
+import { Pressable } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+import { router } from "expo-router";
 
 export default function Home() {
   return (
@@ -9,6 +12,16 @@ export default function Home() {
       <Text style={styles.subtitle}>
         Your smart schedule companion
       </Text>
+
+      <Pressable
+              style={styles.importButton}
+              onPress={() => router.push("/import")}
+            >
+              <Ionicons name="cloud-upload-outline" size={22} color="white" />
+              <Text style={styles.importText}>
+                Import Schedule
+              </Text>
+            </Pressable>
 
       <View style={styles.card}>
         <Text style={styles.cardTitle}>Today</Text>
@@ -24,7 +37,7 @@ export default function Home() {
         startTime="09:00"
         endTime="10:00"
       />
-    </View>
+      </View>
   );
 }
 // hardcoded event card. fix later
@@ -57,5 +70,19 @@ const styles = StyleSheet.create({
   },
   cardText: {
     color: Colors.textSecondary,
+  },
+  importButton:{
+  backgroundColor:Colors.primary,
+  padding:16,
+  borderRadius:16,
+  flexDirection:"row",
+  alignItems:"center",
+  justifyContent:"center",
+  marginBottom:20
+  },
+    importText:{
+  color:"white",
+  marginLeft:8,
+  fontWeight:"600"
   },
 });

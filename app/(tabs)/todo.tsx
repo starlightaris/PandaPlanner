@@ -1,95 +1,85 @@
-import { View, Text, StyleSheet, FlatList } from "react-native";
-
+import { View, Text, StyleSheet, FlatList, Pressable } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import { Colors } from "../theme/colors";
 
-import EventCard from "../(components)/EventCard";
+const todos = [
+  { id: "1", title: "Finish Assignment", done: false },
+  { id: "2", title: "Gym Workout", done: true },
+];
 
 export default function TodoScreen() {
-
-  const events = [
-
-    {
-      id: "1",
-      title: "Finish Assignment",
-      location: "Home",
-      date: "2026-02-23",
-      startTime: "18:00",
-      endTime: "20:00",
-    },
-
-    {
-      id: "2",
-      title: "Gym",
-      location: "Fitness Center",
-      date: "2026-02-23",
-      startTime: "21:00",
-      endTime: "22:00",
-    },
-
-  ];
-
   return (
-
     <View style={styles.container}>
 
-      <Text style={styles.header}>
-        Todo List
-      </Text>
+      <Text style={styles.title}>Todo List</Text>
 
       <FlatList
-
-        data={events}
-
+        data={todos}
         keyExtractor={(item) => item.id}
-
-        contentContainerStyle={{
-          padding: 16,
-        }}
-
         renderItem={({ item }) => (
+          <View style={styles.todoItem}>
 
-          <EventCard
+            <Ionicons
+              name={
+                item.done
+                  ? "checkbox"
+                  : "square-outline"
+              }
+              size={24}
+              color={Colors.primary}
+            />
 
-            title={item.title}
+            <Text style={styles.todoText}>
+              {item.title}
+            </Text>
 
-            location={item.location}
-
-            date={item.date}
-
-            startTime={item.startTime}
-
-            endTime={item.endTime}
-
-          />
-
+          </View>
         )}
-
       />
 
+      <Pressable style={styles.fab}>
+        <Ionicons name="add" size={28} color="white" />
+      </Pressable>
+
     </View>
-
   );
-
 }
 
 const styles = StyleSheet.create({
 
-  container: {
+container: {
+flex: 1,
+backgroundColor: Colors.background,
+padding: 20,
+},
 
-    flex: 1,
+title: {
+fontSize: 26,
+fontWeight: "700",
+marginBottom: 20,
+},
 
-    backgroundColor: Colors.background,
+todoItem: {
+flexDirection: "row",
+alignItems: "center",
+padding: 16,
+backgroundColor: Colors.card,
+borderRadius: 16,
+marginBottom: 10,
+},
 
-  },
+todoText: {
+marginLeft: 12,
+fontSize: 16,
+},
 
-  header: {
-
-    fontSize: 24,
-
-    fontWeight: "700",
-
-    padding: 16,
-
-  },
+fab: {
+position: "absolute",
+right: 20,
+bottom: 20,
+backgroundColor: Colors.primary,
+padding: 16,
+borderRadius: 50,
+},
 
 });
