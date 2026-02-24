@@ -21,7 +21,24 @@ export default function Home() {
               <Text style={styles.importText}>
                 Import Schedule
               </Text>
-            </Pressable>
+      </Pressable>
+
+      <Pressable
+      style={styles.importButton}
+      onPress={()=>router.push("/chat-import")}
+      >
+
+      <Ionicons
+      name="chatbubble-outline"
+      size={22}
+      color="white"
+      />
+
+      <Text style={styles.importText}>
+      Smart Import
+      </Text>
+
+      </Pressable>
 
       <View style={styles.card}>
         <Text style={styles.cardTitle}>Today</Text>
