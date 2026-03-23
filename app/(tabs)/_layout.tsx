@@ -1,93 +1,106 @@
-import { Tabs, useRouter } from "expo-router";
-import { Pressable, StyleSheet, View } from "react-native";
+import { Tabs, router } from "expo-router";
+import { Pressable, View, StyleSheet } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { Colors } from "../theme/colors";
 
 export default function TabsLayout() {
-  const router = useRouter();
 
   return (
-    <>
+
+    <View style={{ flex: 1 }}>
+
+      {/* Tabs with NO default header */}
       <Tabs
-        screenOptions={({ route }) => ({
-          headerShown: false,
-
-          tabBarStyle: styles.tabBar,
-
-          tabBarActiveTintColor: Colors.primary,
-          tabBarInactiveTintColor: "#999",
-
-          tabBarIcon: ({ color, size }) => {
-            let iconName: any;
-
-            if (route.name === "index") {
-              iconName = "home";
-            } else if (route.name === "calendar") {
-              iconName = "calendar";
-            } else if (route.name === "todo") {
-              iconName = "checkmark-circle";
-            } else if (route.name === "settings") {
-              iconName = "settings";
-            }
-
-            return (
-              <Ionicons
-                name={iconName}
-                size={size}
-                color={color}
-              />
-            );
-          },
-        })}
+        screenOptions={{
+          headerShown: false
+        }}
       >
-        <Tabs.Screen name="index" options={{ title: "Home" }} />
+
+        <Tabs.Screen
+          name="index"
+          options={{
+            tabBarIcon: ({ color, size }) => (
+              <Ionicons name="home-outline" color={color} size={size} />
+            ),
+          }}
+        />
 
         <Tabs.Screen
           name="calendar"
-          options={{ title: "Calendar" }}
+          options={{
+            tabBarIcon: ({ color, size }) => (
+              <Ionicons name="calendar-outline" color={color} size={size} />
+            ),
+          }}
         />
 
-        <Tabs.Screen name="todo" options={{ title: "Todo" }} />
+        <Tabs.Screen
+          name="todo"
+          options={{
+            tabBarIcon: ({ color, size }) => (
+              <Ionicons name="checkbox-outline" color={color} size={size} />
+            ),
+          }}
+        />
 
         <Tabs.Screen
           name="settings"
-          options={{ title: "Settings" }}
+          options={{
+            tabBarIcon: ({ color, size }) => (
+              <Ionicons name="settings-outline" color={color} size={size} />
+            ),
+          }}
         />
+
       </Tabs>
 
-      {/* Floating Button */}
-      <View style={styles.fabContainer}>
-        <Pressable
-          style={styles.fab}
-          onPress={() => router.push("/add-event")}
-        >
-          <Ionicons name="add" size={28} color="white" />
-        </Pressable>
-      </View>
-    </>
+
+      {/* Floating chatbot button */}
+      <Pressable
+        style={styles.chatbot}
+        onPress={() => router.push("/chat-import")}
+      >
+
+        <Ionicons
+          name="chatbubble-ellipses"
+          size={26}
+          color="white"
+        />
+
+      </Pressable>
+
+
+    </View>
+
   );
+
 }
 
+
 const styles = StyleSheet.create({
-  tabBar: {
-    height: 60,
-    paddingBottom: 8,
-  },
 
-  fabContainer: {
+  chatbot: {
+
     position: "absolute",
-    bottom: 30,
-    right: 20,
-  },
 
-  fab: {
+    bottom: 90,
+
+    right: 20,
+
     backgroundColor: Colors.primary,
-    width: 60,
-    height: 60,
-    borderRadius: 30,
+
+    width: 56,
+
+    height: 56,
+
+    borderRadius: 28,
+
     justifyContent: "center",
+
     alignItems: "center",
 
     elevation: 5,
+
   },
+
 });

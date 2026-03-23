@@ -16,6 +16,7 @@ import { useState } from "react";
 import { Colors } from "./theme/colors";
 import AppInput from "./(components)/AppInput";
 import PrimaryButton from "./(components)/PrimaryButton";
+import { Modal } from "react-native";
 
 export default function AddEvent() {
   const router = useRouter();
@@ -35,6 +36,8 @@ export default function AddEvent() {
 
   const [showEnd, setShowEnd] = useState(false);
 
+  const [menuVisible, setMenuVisible] = useState(false);
+
   const formatDate = (d: Date) =>
     d.toISOString().split("T")[0];
 
@@ -49,15 +52,25 @@ export default function AddEvent() {
       {/* Header */}
 
       <View style={styles.header}>
+
+        {/* Back */}
         <Pressable onPress={() => router.back()}>
           <Ionicons name="arrow-back" size={24} />
         </Pressable>
 
+
+        {/* Title */}
         <Text style={styles.headerTitle}>
           New Event
         </Text>
 
-        <View style={{ width: 24 }} />
+
+        {/* Menu */}
+        <Pressable onPress={() => setMenuVisible(true)}>
+          <Ionicons name="ellipsis-vertical" size={22} />
+        </Pressable>
+
+
       </View>
 
       <ScrollView style={styles.content}>
@@ -160,6 +173,39 @@ export default function AddEvent() {
           onPress={() => {}}
         />
       </ScrollView>
+
+      <Modal
+        transparent
+        visible={menuVisible}
+        animationType="fade"
+      >
+        <Pressable
+          style={styles.overlay}
+          onPress={() => setMenuVisible(false)}
+        >
+
+          <View style={styles.menu}>
+
+            <Pressable
+              style={styles.menuItem}
+              onPress={() => {
+                setMenuVisible(false);
+                router.push("/import");
+              }}
+            >
+
+              <Ionicons name="download-outline" size={20} />
+
+              <Text style={styles.menuText}>
+                Import Schedule
+              </Text>
+
+            </Pressable>
+
+          </View>
+
+        </Pressable>
+      </Modal>
     </View>
   );
 }
@@ -197,5 +243,31 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     borderWidth: 1,
     borderColor: Colors.border,
+  },
+
+  overlay:{
+  flex:1,
+  backgroundColor:"rgba(0,0,0,0.2)",
+  alignItems:"flex-end",
+  paddingTop:60,
+  paddingRight:16
+  },
+
+  menu:{
+  backgroundColor:"white",
+  borderRadius:12,
+  padding:10,
+  width:180
+  },
+
+  menuItem:{
+  flexDirection:"row",
+  alignItems:"center",
+  padding:10
+  },
+
+  menuText:{
+  marginLeft:10,
+  fontSize:16
   },
 });

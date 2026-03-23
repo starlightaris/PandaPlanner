@@ -1,52 +1,42 @@
-import { View, Text, StyleSheet } from "react-native";
+import { View, Text, StyleSheet, Pressable } from "react-native";
 import { Colors } from "../theme/colors";
 import EventCard from "../(components)/EventCard";
-import { Pressable } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 
+import { testWrite } from "../services/testFirebase";
+
 export default function Home() {
+
+    testWrite();
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>🐼 PandaPlanner</Text>
-      <Text style={styles.subtitle}>
-        Your smart schedule companion
-      </Text>
 
-      <Pressable
-              style={styles.importButton}
-              onPress={() => router.push("/import")}
-            >
-              <Ionicons name="cloud-upload-outline" size={22} color="white" />
-              <Text style={styles.importText}>
-                Import Schedule
-              </Text>
-      </Pressable>
+      {/* Custom Header */}
+      <View style={styles.header}>
 
-      <Pressable
-      style={styles.importButton}
-      onPress={()=>router.push("/chat-import")}
-      >
+        <View>
+          <Text style={styles.logo}>
+            🐼 PandaPlanner
+          </Text>
 
-      <Ionicons
-      name="chatbubble-outline"
-      size={22}
-      color="white"
-      />
+          <Text style={styles.tagline}>
+            Your smart schedule companion
+          </Text>
+        </View>
 
-      <Text style={styles.importText}>
-      Smart Import
-      </Text>
+        <Pressable onPress={() => router.push("/add-event")}>
+          <Ionicons
+            name="add"
+            size={28}
+            color={Colors.primary}
+          />
+        </Pressable>
 
-      </Pressable>
-
-      <View style={styles.card}>
-        <Text style={styles.cardTitle}>Today</Text>
-        <Text style={styles.cardText}>
-          No events yet — enjoy your free time ✨
-        </Text>
       </View>
 
+
+      {/* Event Card */}
       <EventCard
         title="Team Meeting"
         location="Office"
@@ -54,52 +44,34 @@ export default function Home() {
         startTime="09:00"
         endTime="10:00"
       />
-      </View>
+
+    </View>
   );
 }
-// hardcoded event card. fix later
 
 const styles = StyleSheet.create({
+
   container: {
     flex: 1,
     backgroundColor: Colors.background,
     padding: 20,
   },
-  title: {
+
+  header: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 20,
+  },
+
+  logo: {
     fontSize: 28,
     fontWeight: "700",
     color: Colors.textPrimary,
   },
-  subtitle: {
-    marginTop: 6,
-    color: Colors.textSecondary,
-    marginBottom: 24,
-  },
-  card: {
-    backgroundColor: Colors.card,
-    padding: 20,
-    borderRadius: 18,
-  },
-  cardTitle: {
-    fontWeight: "600",
-    fontSize: 16,
-    marginBottom: 6,
-  },
-  cardText: {
+
+  tagline: {
     color: Colors.textSecondary,
   },
-  importButton:{
-  backgroundColor:Colors.primary,
-  padding:16,
-  borderRadius:16,
-  flexDirection:"row",
-  alignItems:"center",
-  justifyContent:"center",
-  marginBottom:20
-  },
-    importText:{
-  color:"white",
-  marginLeft:8,
-  fontWeight:"600"
-  },
+
 });
