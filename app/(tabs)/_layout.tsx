@@ -1,7 +1,12 @@
+import { Ionicons } from "@expo/vector-icons";
+import { decode } from 'base-64';
 import { Tabs, useRouter } from "expo-router";
 import { Pressable, StyleSheet, View } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
 import { Colors } from "../theme/colors";
+
+if (typeof atob === 'undefined') {
+  global.atob = decode;
+}
 
 export default function TabsLayout() {
   const router = useRouter();
