@@ -4,20 +4,7 @@
     <option name="autoReloadType" value="NONE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="2da5ed9d-ae6b-466f-b89c-6fa81a4c350b" name="Changes" comment="">
-      <change afterPath="$PROJECT_DIR$/app/_layout.tsx" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/app/lib/firebase.ts" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/app/services/testFirebase.ts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/caches/deviceStreaming.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/caches/deviceStreaming.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/(tabs)/_layout.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/app/(tabs)/_layout.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/(tabs)/calendar.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/app/(tabs)/calendar.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/(tabs)/index.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/app/(tabs)/index.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/(tabs)/todo.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/app/(tabs)/todo.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/add-event.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/app/add-event.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/package-lock.json" beforeDir="false" afterPath="$PROJECT_DIR$/package-lock.json" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/package.json" beforeDir="false" afterPath="$PROJECT_DIR$/package.json" afterDir="false" />
-    </list>
+    <list default="true" id="2da5ed9d-ae6b-466f-b89c-6fa81a4c350b" name="Changes" comment="" />
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
@@ -68,7 +55,6 @@
   <component name="RecentsManager">
     <key name="MoveFile.RECENT_KEYS">
       <recent name="D:\PandaPlanner\app\(tabs)" />
-      <recent name="D:\PandaPlanner\app" />
       <recent name="D:\PandaPlanner\app\screens" />
       <recent name="D:\PandaPlanner\app\navigation" />
     </key>
