@@ -4,11 +4,7 @@ import EventCard from "../(components)/EventCard";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 
-import { testWrite } from "../services/testFirebase";
-
 export default function Home() {
-
-    testWrite();
   return (
     <View style={styles.container}>
 
