@@ -1,67 +1,71 @@
-import { View, Text, StyleSheet, Pressable, ScrollView, FlatList, RefreshControl } from "react-native";
-import { useState, useCallback } from "react";
+import { View, Text, StyleSheet, Pressable, ScrollView, RefreshControl, Alert } from "react-native";
+import { useState, useCallback, useEffect } from "react";
 import { LinearGradient } from 'expo-linear-gradient';
-import { Colors } from "../theme/colors";
-import EventCard from "../(components)/EventCard";
 import { Ionicons } from "@expo/vector-icons";
-import { router } from "expo-router";
+import { useRouter } from "expo-router";
 import * as Haptics from 'expo-haptics';
 
-// Mock data for demonstration
-const mockEvents = [
-  {
-    id: '1',
-    title: "Team Sync",
-    location: "Conference Room",
-    date: "2026-03-28",
-    startTime: "10:00",
-    endTime: "11:00",
-    category: "Work"
-  },
-  {
-    id: '2',
-    title: "Lunch with Panda",
-    location: "Bamboo Garden",
-    date: "2026-03-28",
-    startTime: "12:30",
-    endTime: "13:30",
-    category: "Personal"
-  },
-  {
-    id: '3',
-    title: "Design Review",
-    location: "Zoom",
-    date: "2026-03-29",
-    startTime: "15:00",
-    endTime: "16:30",
-    category: "Work"
-  }
-];
+// --- YOUR IMPORTS ---
+import { Colors } from "../theme/colors";
+import EventCard from "../(components)/EventCard";
+import { useAuth } from '../context/AuthContext';
 
 export default function Home() {
+  const router = useRouter();
+  const { accessToken, user } = useAuth(); // 1. Grab global state
+
   const [refreshing, setRefreshing] = useState(false);
-  const [events, setEvents] = useState(mockEvents);
+  const [events, setEvents] = useState([]);
   const [selectedFilter, setSelectedFilter] = useState('all');
+
+  // 2. Fetch Google Calendar Events
+  const fetchGoogleEvents = async () => {
+    if (!accessToken) return;
+
+    try {
+      const response = await fetch(
+        "https://www.googleapis.com/calendar/v3/calendars/primary/events?timeMin=" + new Date().toISOString(),
+        {
+          headers: { Authorization: `Bearer ${accessToken}` }
+        }
+      );
+      const data = await response.json();
+
+      // Transform Google format to your EventCard format
+      const formattedEvents = data.items?.map((item: any) => ({
+        id: item.id,
+        title: item.summary,
+        location: item.location || "No Location",
+        date: item.start?.dateTime?.split('T') || item.start?.date,
+        startTime: item.start?.dateTime ? new Date(item.start.dateTime).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : "All Day",
+        endTime: item.end?.dateTime ? new Date(item.end.dateTime).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : "",
+        category: "Google Sync"
+      })) || [];
+
+      setEvents(formattedEvents);
+    } catch (error) {
+      console.error("Fetch error:", error);
+    }
+  };
+
+  useEffect(() => {
+    fetchGoogleEvents();
+  }, [accessToken]);
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    // Simulate data refresh
-    setTimeout(() => {
-      setRefreshing(false);
-    }, 1500);
-  }, []);
+    fetchGoogleEvents().finally(() => setRefreshing(false));
+  }, [accessToken]);
 
-  const handleAddEvent = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    router.push("/add-event");
-  };
-
-  const filters = [
-    { id: 'all', label: 'All', icon: 'calendar-outline' },
-    { id: 'today', label: 'Today', icon: 'today-outline' },
-    { id: 'upcoming', label: 'Upcoming', icon: 'time-outline' }
-  ];
+  // 3. Filter Logic
+  const filteredEvents = events.filter(event => {
+    if (selectedFilter === 'all') return true;
+    const today = new Date().toISOString().split('T');
+    if (selectedFilter === 'today') return event.date === today;
+    if (selectedFilter === 'upcoming') return event.date > today;
+    return true;
+  });
 
   const getGreeting = () => {
     const hour = new Date().getHours();
@@ -71,22 +75,13 @@ export default function Home() {
   };
 
   const getDateString = () => {
-    const date = new Date();
-    return date.toLocaleDateString('en-US', {
-      weekday: 'long',
-      month: 'long',
-      day: 'numeric'
+    return new Date().toLocaleDateString('en-US', {
+      weekday: 'long', month: 'long', day: 'numeric'
     });
   };
 
   return (
-    <LinearGradient
-      colors={['#FFFFFF', '#FFFBF5']}
-      style={styles.container}
-      start={{ x: 0, y: 0 }}
-      end={{ x: 0, y: 1 }}
-    >
-      {/* Decorative Elements */}
+    <LinearGradient colors={['#FFFFFF', '#FFFBF5']} style={styles.container}>
       <View style={styles.decorativeBlob1} />
       <View style={styles.decorativeBlob2} />
 
@@ -94,12 +89,7 @@ export default function Home() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
         refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={onRefresh}
-            tintColor="#FF8787"
-            colors={['#FF8787']}
-          />
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#FF8787" />
         }
       >
         {/* Header Section */}
@@ -107,145 +97,89 @@ export default function Home() {
           <View style={styles.headerTop}>
             <View>
               <Text style={styles.greeting}>{getGreeting()},</Text>
-              <Text style={styles.userName}>Panda Friend 🐼</Text>
+              {/* Greets user by name from Google Auth */}
+              <Text style={styles.userName}>{user?.displayName?.split(' ') || "Panda"} Friend 🐼</Text>
             </View>
-            <Pressable
-              style={styles.addButton}
-              onPress={handleAddEvent}
-            >
-              <LinearGradient
-                colors={['#FF8787', '#FF9F9F']}
-                style={styles.addButtonGradient}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-              >
+            <Pressable style={styles.addButton} onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                router.push("/add-event");
+            }}>
+              <LinearGradient colors={['#FF8787', '#FF9F9F']} style={styles.addButtonGradient}>
                 <Ionicons name="add" size={24} color="#FFFFFF" />
               </LinearGradient>
             </Pressable>
           </View>
-
           <Text style={styles.dateText}>{getDateString()}</Text>
 
-          {/* Stats Cards */}
+          {/* Stats Section */}
           <View style={styles.statsContainer}>
-            <View style={styles.statCard}>
-              <View style={styles.statIconContainer}>
-                <Ionicons name="calendar" size={20} color="#FF8787" />
-              </View>
-              <Text style={styles.statNumber}>{events.length}</Text>
-              <Text style={styles.statLabel}>Upcoming</Text>
-            </View>
-            <View style={styles.statCard}>
-              <View style={styles.statIconContainer}>
-                <Ionicons name="time" size={20} color="#9BD8EC" />
-              </View>
-              <Text style={styles.statNumber}>
-                {events.filter(e => e.date === new Date().toISOString().split('T')[0]).length}
-              </Text>
-              <Text style={styles.statLabel}>Today</Text>
-            </View>
-            <View style={styles.statCard}>
-              <View style={styles.statIconContainer}>
-                <Ionicons name="checkmark-circle" size={20} color="#FFF7B2" />
-              </View>
-              <Text style={styles.statNumber}>85%</Text>
-              <Text style={styles.statLabel}>Productivity</Text>
-            </View>
+            <StatCard icon="calendar" color="#FF8787" value={events.length} label="Total" />
+            <StatCard icon="time" color="#9BD8EC" value={events.filter(e => e.date === new Date().toISOString().split('T')).length} label="Today" />
+            <StatCard icon="checkmark-circle" color="#FFF7B2" value="Live" label="Sync" />
           </View>
         </View>
 
         {/* Filter Tabs */}
         <View style={styles.filterContainer}>
-          {filters.map((filter) => (
+          {['all', 'today', 'upcoming'].map((id) => (
             <Pressable
-              key={filter.id}
-              style={[
-                styles.filterTab,
-                selectedFilter === filter.id && styles.filterTabActive
-              ]}
+              key={id}
+              style={[styles.filterTab, selectedFilter === id && styles.filterTabActive]}
               onPress={() => {
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                setSelectedFilter(filter.id);
+                setSelectedFilter(id);
               }}
             >
-              <Ionicons
-                name={filter.icon as any}
-                size={16}
-                color={selectedFilter === filter.id ? "#FF8787" : "#9B9B9B"}
-              />
-              <Text style={[
-                styles.filterText,
-                selectedFilter === filter.id && styles.filterTextActive
-              ]}>
-                {filter.label}
+              <Text style={[styles.filterText, selectedFilter === id && styles.filterTextActive]}>
+                {id.charAt(0).toUpperCase() + id.slice(1)}
               </Text>
             </Pressable>
           ))}
         </View>
 
-        {/* Events Section */}
+        {/* Events List */}
         <View style={styles.eventsSection}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Your Schedule</Text>
-            <Pressable onPress={() => {
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-              router.push("/calendar");
-            }}>
-              <Text style={styles.seeAllText}>See All</Text>
-            </Pressable>
           </View>
 
-          {events.length > 0 ? (
+          {filteredEvents.length > 0 ? (
             <View style={styles.eventsList}>
-              {events.map((event) => (
+              {filteredEvents.map((event: any) => (
                 <EventCard
                   key={event.id}
-                  title={event.title}
-                  location={event.location}
-                  date={event.date}
-                  startTime={event.startTime}
-                  endTime={event.endTime}
-                  category={event.category}
+                  {...event}
                   onPress={() => {
                     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                    router.push(`/event/${event.id}`);
+                    // Open in Google Calendar or show details
+                    Alert.alert(event.title, `Location: ${event.location}`);
                   }}
                 />
               ))}
             </View>
           ) : (
             <View style={styles.emptyState}>
-              <View style={styles.emptyIconContainer}>
-                <Ionicons name="calendar-outline" size={48} color="#FF8787" />
-              </View>
-              <Text style={styles.emptyTitle}>No events yet</Text>
-              <Text style={styles.emptyText}>
-                Tap the + button to add your first event and let Panda help you stay organized!
-              </Text>
-              <Pressable
-                style={styles.emptyButton}
-                onPress={handleAddEvent}
-              >
-                <Text style={styles.emptyButtonText}>Create Event</Text>
-              </Pressable>
+              <Ionicons name="calendar-outline" size={48} color="#FF8787" />
+              <Text style={styles.emptyTitle}>No events found</Text>
+              <Text style={styles.emptyText}>Tap + to add one or pull down to sync with Google!</Text>
             </View>
           )}
         </View>
-
-        {/* Productivity Tip */}
-        <View style={styles.tipCard}>
-          <View style={styles.tipIconContainer}>
-            <Ionicons name="bulb-outline" size={24} color="#FFF7B2" />
-          </View>
-          <View style={styles.tipContent}>
-            <Text style={styles.tipTitle}>Panda Tip</Text>
-            <Text style={styles.tipText}>
-              Plan your week ahead! Studies show that planning reduces stress by 40%.
-            </Text>
-          </View>
-        </View>
       </ScrollView>
     </LinearGradient>
+  );
+}
+
+// Helper component for Stats
+function StatCard({ icon, color, value, label }: any) {
+  return (
+    <View style={styles.statCard}>
+      <View style={[styles.statIconContainer, { backgroundColor: `${color}15` }]}>
+        <Ionicons name={icon} size={20} color={color} />
+      </View>
+      <Text style={styles.statNumber}>{value}</Text>
+      <Text style={styles.statLabel}>{label}</Text>
+    </View>
   );
 }
 
