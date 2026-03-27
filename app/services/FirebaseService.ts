@@ -1,18 +1,18 @@
-import { addDoc, collection, getDocs, query, Timestamp } from 'firebase/firestore';
+import { addDoc, collection, DocumentData, getDocs, query, Timestamp } from 'firebase/firestore';
 import { db } from '../../firebaseConfig';
+import { ParsedEvent } from './AIService';
 
 class FirebaseService {
   /**
    * Saves a finalized event to the user's sub-collection
-   * @param {string} userId - The unique Firebase UID
-   * @param {object} eventData - JSON from Gemini or Manual input
    */
-  async saveEvent(userId, eventData) {
+  async saveEvent(userId: string, eventData: ParsedEvent): Promise<string> {
     try {
       const scheduleRef = collection(db, 'users', userId, 'schedules');
       
       const docRef = await addDoc(scheduleRef, {
         title: eventData.title,
+        // Convert ISO strings back to Firestore Timestamps
         startTime: Timestamp.fromDate(new Date(eventData.startTime)),
         endTime: Timestamp.fromDate(new Date(eventData.endTime)),
         location: eventData.location || "Not Specified",
@@ -32,7 +32,7 @@ class FirebaseService {
   /**
    * Fetches events for conflict detection logic
    */
-  async getUserEvents(userId) {
+  async getUserEvents(userId: string): Promise<DocumentData[]> {
     const q = query(collection(db, 'users', userId, 'schedules'));
     const querySnapshot = await getDocs(q);
     return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));

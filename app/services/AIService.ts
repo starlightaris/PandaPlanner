@@ -1,8 +1,20 @@
-import { GoogleGenerativeAI } from "@google/generative-ai";
+import { GenerativeModel, GoogleGenerativeAI } from "@google/generative-ai";
 
-const genAI = new GoogleGenerativeAI(process.env.EXPO_PUBLIC_GEMINI_API_KEY);
+// Interface to standardize AI output
+export interface ParsedEvent {
+  title: string;
+  startTime: string; // ISO String from AI
+  endTime: string;   // ISO String from AI
+  location?: string;
+  category?: string;
+  source?: string;
+}
+
+const genAI = new GoogleGenerativeAI(process.env.EXPO_PUBLIC_GEMINI_API_KEY as string);
 
 class AIService {
+  private model: GenerativeModel;
+
   constructor() {
     this.model = genAI.getGenerativeModel({ 
       model: "gemini-1.5-flash",
@@ -10,12 +22,7 @@ class AIService {
     });
   }
 
-  /**
-   * The "Universal" parser for the app
-   * @param {string} prompt - The user's typed command or file context
-   * @param {object} fileData - Optional { base64, mimeType } for images/PDFs
-   */
-  async parseSchedule(userInput, fileData = null) {
+  async parseSchedule(userInput: string, fileData: { base64: string; mimeType: string } | null = null): Promise<ParsedEvent[] | null> {
     const systemInstruction = `
       You are a Schedule Parser. Extract events into a JSON array.
       Format: [{ "title": string, "startTime": "ISO String", "endTime": "ISO String", "location": string }]
@@ -23,9 +30,8 @@ class AIService {
     `;
 
     try {
-      let payload = [systemInstruction + userInput];
+      let payload: any[] = [systemInstruction + userInput];
       
-      // If user uploaded a screenshot or file, add it to the request
       if (fileData) {
         payload.push({
           inlineData: {
@@ -37,7 +43,7 @@ class AIService {
 
       const result = await this.model.generateContent(payload);
       const response = result.response;
-      return JSON.parse(response.text());
+      return JSON.parse(response.text()) as ParsedEvent[];
     } catch (error) {
       console.error("Gemini Parse Error: ", error);
       return null;
