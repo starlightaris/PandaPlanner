@@ -360,63 +360,69 @@ export default function AddEvent() {
       </Animated.View>
 
       {/* Date Time Pickers */}
-      {showDate && (
-        <DateTimePicker
-          mode="date"
-          value={date}
-          onChange={(_, selected) => {
-            setShowDate(Platform.OS === 'ios'); // iOS needs to stay open to click "Done"
-            if (selected) setDate(selected);
-            if (Platform.OS === 'android') setShowDate(false);
-            setActiveField(null);
-          }}
-          display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-          themeVariant="light"
-          accentColor="#FF8787"
-        />
-      )}
-      {showStart && (
-        <DateTimePicker
-          mode="time"
-          value={startTime}
-          onChange={(_, selected) => {
-            setShowStart(false);
-            if (selected) setStartTime(selected);
-            setActiveField(null);
-          }}
-          display="spinner"
-          themeVariant="light"
-          accentColor="#FF8787"
-        />
-      )}
-      {showEnd && (
-        <DateTimePicker
-          mode="time"
-          value={endTime}
-          onChange={(_, selected) => {
-            setShowEnd(false);
-            if (selected) setEndTime(selected);
-            setActiveField(null);
-          }}
-          display="spinner"
-          themeVariant="light"
-          accentColor="#FF8787"
-        />
-      )}
-      {showReminderTime && (
-        <DateTimePicker
-          mode="time"
-          value={reminderTime}
-          onChange={(_, selected) => {
-            setShowReminderTime(false);
-            if (selected) setReminderTime(selected);
-            setActiveField(null);
-          }}
-          display="spinner"
-          themeVariant="light"
-          accentColor="#FF8787"
-        />
-      )}
+      <Modal
+        visible={showDate || showStart || showEnd || showReminderTime}
+        transparent={true}
+        animationType="slide"
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.pickerContainer}>
+            {/* Header with Done Button */}
+            <View style={styles.pickerHeader}>
+              <Text style={styles.pickerTitle}>Select {showDate ? 'Date' : 'Time'}</Text>
+              <Pressable
+                onPress={() => {
+                  setShowDate(false);
+                  setShowStart(false);
+                  setShowEnd(false);
+                  setShowReminderTime(false);
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                }}
+              >
+                <Text style={styles.doneText}>Done</Text>
+              </Pressable>
+            </View>
+
+            {/* The Actual Picker */}
+            {showDate && (
+              <DateTimePicker
+                mode="date"
+                value={date}
+                onChange={(_, d) => d && setDate(d)}
+                display="spinner"
+                textColor="#000"
+              />
+            )}
+            {showStart && (
+              <DateTimePicker
+                mode="time"
+                value={startTime}
+                onChange={(_, d) => d && setStartTime(d)}
+                display="spinner"
+                textColor="#000"
+              />
+            )}
+            {showEnd && (
+              <DateTimePicker
+                mode="time"
+                value={endTime}
+                onChange={(_, d) => d && setEndTime(d)}
+                display="spinner"
+                textColor="#000"
+              />
+            )}
+            {showReminderTime && (
+              <DateTimePicker
+                mode="time"
+                value={reminderTime}
+                onChange={(_, d) => d && setReminderTime(d)}
+                display="spinner"
+                textColor="#000"
+              />
+            )}
+          </View>
+        </View>
+      </Modal>
 
       {/* Menu Modal */}
       <Modal
@@ -694,4 +700,36 @@ toggleBackground: {
     fontSize: 15,
     color: '#5C5C5C',
   },
+
+  modalOverlay: {
+      flex: 1,
+      backgroundColor: 'rgba(0,0,0,0.4)', // Dim the background
+      justifyContent: 'flex-end', // Pull the picker to the bottom
+    },
+    pickerContainer: {
+      backgroundColor: 'white',
+      borderTopLeftRadius: 25,
+      borderTopRightRadius: 25,
+      paddingBottom: 40, // Space for the home indicator
+      paddingHorizontal: 20,
+    },
+    pickerHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      paddingVertical: 15,
+      borderBottomWidth: 1,
+      borderBottomColor: '#F0F0F0',
+    },
+    pickerTitle: {
+      fontSize: 16,
+      fontWeight: '600',
+      color: '#3A3A3A',
+    },
+    doneText: {
+      fontSize: 17,
+      fontWeight: '700',
+      color: '#FF8787', // Using your Grapefruit color
+      paddingHorizontal: 10,
+    },
 });
