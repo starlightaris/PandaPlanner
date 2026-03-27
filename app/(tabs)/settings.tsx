@@ -1,166 +1,511 @@
-import { View, Text, StyleSheet, Pressable } from "react-native";
-
+import { View, Text, StyleSheet, Pressable, ScrollView, Switch, Modal, Alert } from "react-native";
+import { useState } from "react";
+import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from "@expo/vector-icons";
+import * as Haptics from 'expo-haptics';
 
 import { Colors } from "../theme/colors";
 
 export default function SettingsScreen() {
+  const [notificationsEnabled, setNotificationsEnabled] = useState(true);
+  const [googleSyncEnabled, setGoogleSyncEnabled] = useState(false);
+  const [darkModeEnabled, setDarkModeEnabled] = useState(false);
+  const [logoutModalVisible, setLogoutModalVisible] = useState(false);
+
+  const handleLogout = () => {
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+    setLogoutModalVisible(true);
+  };
+
+  const confirmLogout = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    setLogoutModalVisible(false);
+    // Add logout logic here
+    Alert.alert("👋 Goodbye!", "See you soon, panda friend!");
+  };
 
   return (
+    <LinearGradient
+      colors={['#FFFFFF', '#FFFBF5']}
+      style={styles.container}
+      start={{ x: 0, y: 0 }}
+      end={{ x: 0, y: 1 }}
+    >
+      {/* Decorative Panda Elements */}
+      <View style={styles.decorativeCircle1} />
+      <View style={styles.decorativeCircle2} />
 
-    <View style={styles.container}>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.scrollContent}
+      >
+        {/* Profile Section */}
+        <View style={styles.profileCard}>
+          <LinearGradient
+            colors={['#FF8787', '#FF9F9F']}
+            style={styles.avatarGradient}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+          >
+            <View style={styles.avatarContainer}>
+              <Ionicons name="paw-outline" size={48} color="#FFFFFF" />
+            </View>
+          </LinearGradient>
 
-      {/* Profile */}
+          <Text style={styles.name}>Panda Enthusiast</Text>
+          <Text style={styles.email}>user@pandaplanner.com</Text>
 
-      <View style={styles.profile}>
+          <View style={styles.statsContainer}>
+            <View style={styles.stat}>
+              <Text style={styles.statNumber}>24</Text>
+              <Text style={styles.statLabel}>Events</Text>
+            </View>
+            <View style={styles.statDivider} />
+            <View style={styles.stat}>
+              <Text style={styles.statNumber}>12</Text>
+              <Text style={styles.statLabel}>Reminders</Text>
+            </View>
+          </View>
+        </View>
 
-        <Ionicons
-          name="person-circle-outline"
-          size={80}
-          color={Colors.primary}
-        />
+        {/* Settings Sections */}
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <Ionicons name="options-outline" size={20} color="#FF8787" />
+            <Text style={styles.sectionTitle}>Preferences</Text>
+          </View>
 
-        <Text style={styles.name}>
-          PandaPlanner User
-        </Text>
+          <SettingItem
+            icon="notifications"
+            title="Notifications"
+            description="Get panda reminders"
+            type="toggle"
+            value={notificationsEnabled}
+            onValueChange={setNotificationsEnabled}
+          />
 
-        <Text style={styles.email}>
-          user@email.com
-        </Text>
+          <SettingItem
+            icon="calendar"
+            title="Google Calendar Sync"
+            description="Sync with your Google Calendar"
+            type="toggle"
+            value={googleSyncEnabled}
+            onValueChange={setGoogleSyncEnabled}
+          />
 
-      </View>
+          <SettingItem
+            icon="moon"
+            title="Dark Mode"
+            description="Easy on the eyes"
+            type="toggle"
+            value={darkModeEnabled}
+            onValueChange={setDarkModeEnabled}
+          />
+        </View>
 
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <Ionicons name="cloud-outline" size={20} color="#FF8787" />
+            <Text style={styles.sectionTitle}>Account</Text>
+          </View>
 
-      {/* Settings options */}
+          <SettingItem
+            icon="sync"
+            title="Sync Data"
+            description="Last synced: today"
+            type="action"
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              Alert.alert("🔄 Syncing", "Panda is syncing your data...");
+            }}
+          />
 
-      <View style={styles.section}>
+          <SettingItem
+            icon="download"
+            title="Export Data"
+            description="Backup your panda plans"
+            type="action"
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              Alert.alert("📦 Export", "Your data is being prepared");
+            }}
+          />
+        </View>
 
-        <SettingItem
-          icon="notifications-outline"
-          title="Notifications"
-        />
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <Ionicons name="information-circle-outline" size={20} color="#FF8787" />
+            <Text style={styles.sectionTitle}>About</Text>
+          </View>
 
-        <SettingItem
-          icon="calendar-outline"
-          title="Google Calendar Sync"
-        />
+          <SettingItem
+            icon="heart"
+            title="Rate Panda Planner"
+            description="Love us? Leave a review!"
+            type="action"
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              Alert.alert("🐼❤️", "Thank you for supporting Panda Planner!");
+            }}
+          />
 
-        <SettingItem
-          icon="moon-outline"
-          title="Dark Mode"
-        />
+          <SettingItem
+            icon="document-text"
+            title="Privacy Policy"
+            description="How we protect your data"
+            type="action"
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              Alert.alert("📄 Privacy Policy", "Your data is safe with Panda!");
+            }}
+          />
 
-        <SettingItem
-          icon="log-out-outline"
-          title="Logout"
-          danger
-        />
+          <SettingItem
+            icon="help-circle"
+            title="Help & Support"
+            description="FAQs and contact us"
+            type="action"
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              Alert.alert("🐼 Help Center", "How can Panda assist you today?");
+            }}
+          />
+        </View>
 
-      </View>
+        {/* Logout Button */}
+        <Pressable
+          style={styles.logoutButton}
+          onPress={handleLogout}
+        >
+          <Ionicons name="log-out-outline" size={22} color="#FF8787" />
+          <Text style={styles.logoutText}>Log Out</Text>
+        </Pressable>
 
-    </View>
+        <Text style={styles.version}>Panda Planner v1.0.0</Text>
+      </ScrollView>
 
+      {/* Logout Modal */}
+      <Modal
+        visible={logoutModalVisible}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setLogoutModalVisible(false)}
+      >
+        <Pressable style={styles.modalOverlay} onPress={() => setLogoutModalVisible(false)}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalIcon}>
+              <Ionicons name="paw" size={48} color="#FF8787" />
+            </View>
+            <Text style={styles.modalTitle}>Log Out?</Text>
+            <Text style={styles.modalMessage}>
+              Are you sure you want to leave? Your panda will miss you!
+            </Text>
+            <View style={styles.modalButtons}>
+              <Pressable
+                style={[styles.modalButton, styles.modalButtonCancel]}
+                onPress={() => setLogoutModalVisible(false)}
+              >
+                <Text style={styles.modalButtonTextCancel}>Stay</Text>
+              </Pressable>
+              <Pressable
+                style={[styles.modalButton, styles.modalButtonConfirm]}
+                onPress={confirmLogout}
+              >
+                <Text style={styles.modalButtonTextConfirm}>Log Out</Text>
+              </Pressable>
+            </View>
+          </View>
+        </Pressable>
+      </Modal>
+    </LinearGradient>
   );
-
 }
 
 function SettingItem({
   icon,
   title,
-  danger,
-}: any) {
-
+  description,
+  type = "action",
+  value,
+  onValueChange,
+  onPress
+}: {
+  icon: string;
+  title: string;
+  description?: string;
+  type?: "toggle" | "action";
+  value?: boolean;
+  onValueChange?: (value: boolean) => void;
+  onPress?: () => void;
+}) {
   return (
+    <Pressable
+      style={styles.item}
+      onPress={type === "action" ? onPress : undefined}
+    >
+      <View style={styles.itemIcon}>
+        <Ionicons name={icon as any} size={22} color="#FF8787" />
+      </View>
 
-    <Pressable style={styles.item}>
+      <View style={styles.itemContent}>
+        <Text style={styles.itemTitle}>{title}</Text>
+        {description && (
+          <Text style={styles.itemDescription}>{description}</Text>
+        )}
+      </View>
 
-      <Ionicons
-        name={icon}
-        size={22}
-        color={danger ? "red" : Colors.primary}
-      />
-
-      <Text
-        style={[
-          styles.itemText,
-          danger && { color: "red" },
-        ]}
-      >
-
-        {title}
-
-      </Text>
-
+      {type === "toggle" ? (
+        <Switch
+          value={value}
+          onValueChange={onValueChange}
+          trackColor={{ false: "#E5E5EA", true: "#FF8787" }}
+          thumbColor="#FFFFFF"
+          ios_backgroundColor="#E5E5EA"
+        />
+      ) : (
+        <Ionicons name="chevron-forward" size={20} color="#C7C7C7" />
+      )}
     </Pressable>
-
   );
-
 }
 
 const styles = StyleSheet.create({
-
   container: {
-
     flex: 1,
-
-    backgroundColor: Colors.background,
-
   },
-
-  profile: {
-
-    alignItems: "center",
-
-    padding: 24,
-
+  decorativeCircle1: {
+    position: 'absolute',
+    top: -50,
+    right: -50,
+    width: 150,
+    height: 150,
+    borderRadius: 75,
+    backgroundColor: '#9BD8EC',
+    opacity: 0.1,
   },
-
+  decorativeCircle2: {
+    position: 'absolute',
+    bottom: -30,
+    left: -30,
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    backgroundColor: '#FFF7B2',
+    opacity: 0.2,
+  },
+  scrollContent: {
+    paddingBottom: 40,
+  },
+  profileCard: {
+    alignItems: 'center',
+    marginTop: 20,
+    marginHorizontal: 20,
+    marginBottom: 24,
+    paddingVertical: 32,
+    paddingHorizontal: 20,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 28,
+    shadowColor: '#9BD8EC',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 3,
+  },
+  avatarGradient: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    marginBottom: 16,
+  },
+  avatarContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   name: {
-
-    fontSize: 20,
-
-    fontWeight: "600",
-
-    marginTop: 8,
-
+    fontSize: 22,
+    fontWeight: '700',
+    color: '#3A3A3A',
+    marginBottom: 4,
+    letterSpacing: -0.3,
   },
-
   email: {
-
-    color: Colors.textSecondary,
-
+    fontSize: 14,
+    color: '#9B9B9B',
+    marginBottom: 20,
   },
-
+  statsContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 24,
+  },
+  stat: {
+    alignItems: 'center',
+  },
+  statNumber: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#FF8787',
+  },
+  statLabel: {
+    fontSize: 12,
+    color: '#9B9B9B',
+    marginTop: 2,
+  },
+  statDivider: {
+    width: 1,
+    height: 30,
+    backgroundColor: '#F0F0F0',
+  },
   section: {
-
-    backgroundColor: "white",
-
-    margin: 16,
-
-    borderRadius: 16,
-
+    backgroundColor: '#FFFFFF',
+    marginHorizontal: 20,
+    marginBottom: 20,
+    borderRadius: 20,
+    overflow: 'hidden',
+    shadowColor: '#9BD8EC',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    elevation: 2,
   },
-
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingTop: 16,
+    paddingBottom: 12,
+    gap: 8,
+  },
+  sectionTitle: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#FF8787',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
   item: {
-
-    flexDirection: "row",
-
-    alignItems: "center",
-
-    padding: 16,
-
-    borderBottomWidth: 1,
-
-    borderBottomColor: Colors.border,
-
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    borderTopWidth: 1,
+    borderTopColor: '#F5F5F5',
   },
-
-  itemText: {
-
-    marginLeft: 12,
-
+  itemIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    backgroundColor: '#FFF5F0',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  itemContent: {
+    flex: 1,
+  },
+  itemTitle: {
     fontSize: 16,
-
+    fontWeight: '500',
+    color: '#3A3A3A',
+    marginBottom: 2,
   },
-
+  itemDescription: {
+    fontSize: 12,
+    color: '#9B9B9B',
+  },
+  logoutButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 12,
+    marginHorizontal: 20,
+    marginTop: 8,
+    marginBottom: 16,
+    paddingVertical: 16,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: '#FFE5E5',
+  },
+  logoutText: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: '#FF8787',
+  },
+  version: {
+    textAlign: 'center',
+    fontSize: 12,
+    color: '#C7C7C7',
+    marginTop: 8,
+    marginBottom: 20,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.4)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContent: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 28,
+    padding: 24,
+    width: '80%',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 20,
+    elevation: 5,
+  },
+  modalIcon: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: '#FFF5F0',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#3A3A3A',
+    marginBottom: 8,
+  },
+  modalMessage: {
+    fontSize: 14,
+    color: '#9B9B9B',
+    textAlign: 'center',
+    marginBottom: 24,
+    lineHeight: 20,
+  },
+  modalButtons: {
+    flexDirection: 'row',
+    gap: 12,
+    width: '100%',
+  },
+  modalButton: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  modalButtonCancel: {
+    backgroundColor: '#F5F5F5',
+  },
+  modalButtonConfirm: {
+    backgroundColor: '#FF8787',
+  },
+  modalButtonTextCancel: {
+    fontSize: 15,
+    fontWeight: '500',
+    color: '#5C5C5C',
+  },
+  modalButtonTextConfirm: {
+    fontSize: 15,
+    fontWeight: '500',
+    color: '#FFFFFF',
+  },
 });
