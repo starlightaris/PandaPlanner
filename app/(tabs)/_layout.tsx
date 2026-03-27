@@ -64,7 +64,7 @@ export default function TabsLayout() {
       <View style={styles.fabContainer}>
         <Pressable
           style={styles.fab}
-          onPress={() => router.push("/add-event")}
+          onPress={() => router.push("/chat-import")}
         >
           <Ionicons name="add" size={28} color="white" />
         </Pressable>
