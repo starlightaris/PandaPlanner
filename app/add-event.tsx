@@ -1,5 +1,4 @@
-import { View, Text, StyleSheet, ScrollView, Pressable, Alert, ActivityIndicator, Modal, Animated, Dimensions } from "react-native";
-import { useRouter } from "expo-router";
+import { View, Text, StyleSheet, ScrollView, Pressable, Alert, ActivityIndicator, Modal, Animated, Dimensions, Platform } from "react-native";import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { useState, useRef, useEffect } from "react";
@@ -197,26 +196,29 @@ export default function AddEvent() {
           </Pressable>
         </View>
 
-        {/* Custom iOS Toggle */}
+        {/* Custom iOS Toggle - FIXED LOGIC */}
         <View style={styles.toggleContainer}>
           <View style={styles.toggleBackground}>
             <Animated.View
               style={[
                 styles.toggleThumb,
-                { transform: [{ translateX: togglePosition }] }
+                {
+                  // Use a fixed width calculation so it doesn't jump
+                  transform: [{ translateX: togglePosition }]
+                }
               ]}
             />
             <Pressable
-              style={[styles.toggleOption, !isReminder && styles.toggleOptionActive]}
-              onPress={() => !isReminder && toggleSwitch()}
+              style={styles.toggleOption}
+              onPress={() => isReminder && toggleSwitch()} // Switch to Event if currently Reminder
             >
               <Text style={[styles.toggleText, !isReminder && styles.toggleTextActive]}>
                 📅 Event
               </Text>
             </Pressable>
             <Pressable
-              style={[styles.toggleOption, isReminder && styles.toggleOptionActive]}
-              onPress={() => !isReminder && toggleSwitch()}
+              style={styles.toggleOption}
+              onPress={() => !isReminder && toggleSwitch()} // Switch to Reminder if currently Event
             >
               <Text style={[styles.toggleText, isReminder && styles.toggleTextActive]}>
                 ⏰ Reminder
@@ -363,11 +365,12 @@ export default function AddEvent() {
           mode="date"
           value={date}
           onChange={(_, selected) => {
-            setShowDate(false);
+            setShowDate(Platform.OS === 'ios'); // iOS needs to stay open to click "Done"
             if (selected) setDate(selected);
+            if (Platform.OS === 'android') setShowDate(false);
             setActiveField(null);
           }}
-          display="spinner"
+          display={Platform.OS === 'ios' ? 'spinner' : 'default'}
           themeVariant="light"
           accentColor="#FF8787"
         />
@@ -518,27 +521,27 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     marginBottom: 24,
   },
-  toggleBackground: {
+toggleBackground: {
     flexDirection: 'row',
     backgroundColor: '#F0F0F0',
     borderRadius: 100,
     padding: 4,
-    width: width - 40,
-    maxWidth: 320,
+    width: '100%', // Use percentage for stability
     position: 'relative',
+    height: 50,
   },
   toggleThumb: {
     position: 'absolute',
-    width: width * 0.4 - 8,
-    height: '100%',
+    width: '48%', // Almost half
+    height: 42,   // Fixed height inside the 50px container
     backgroundColor: '#FFFFFF',
     borderRadius: 100,
+    top: 4,
+    // Remove elevation if it causes weird borders on Android
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
-    elevation: 3,
-    top: 4,
   },
   toggleOption: {
     flex: 1,
