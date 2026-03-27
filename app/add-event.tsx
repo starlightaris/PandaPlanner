@@ -73,61 +73,69 @@ export default function AddEvent() {
     return combined;
   };
 
-  const handleSave = async () => {
-    if (!title.trim()) {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      Alert.alert("🐼 Oops!", "Please give your panda a title!");
-      return;
-    }
+const handleSave = async () => {
+  if (!title.trim()) {
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+    Alert.alert("🐼 Oops!", "Please give your panda a title!");
+    return;
+  }
 
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    setIsLoading(true);
+  // --- CRITICAL STEP ---
+  // You'll need to pass your Google Access Token here.
+  // For now, let's assume you're getting it from your Auth context/state.
+  const accessToken = "YOUR_GOOGLE_ACCESS_TOKEN";
 
-    try {
-      if (isReminder) {
-        const finalReminderTime = combineDateAndTime(date, reminderTime);
-        await FirebaseService.saveReminder({
-          title,
-          location: location || undefined,
-          reminderTime: finalReminderTime.toISOString(),
-          isCompleted: false,
-          category: "General"
-        });
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-        Alert.alert("🎋 Panda Reminder Set!", "I'll remind you when it's time!", [
-          { text: "Yay!", onPress: () => router.back() }
-        ]);
-      } else {
-        const finalStart = combineDateAndTime(date, startTime);
-        const finalEnd = combineDateAndTime(date, endTime);
+  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+  setIsLoading(true);
 
-        if (finalEnd <= finalStart) {
-          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-          Alert.alert("🐼 Time Trouble!", "End time must be after start time");
-          setIsLoading(false);
-          return;
-        }
+  try {
+    if (isReminder) {
+      const finalReminderTime = combineDateAndTime(date, reminderTime).toISOString();
 
-        await FirebaseService.saveEvent({
-          title,
-          location,
-          startTime: finalStart.toISOString(),
-          endTime: finalEnd.toISOString(),
-          source: "Manual",
-          category: "General"
-        });
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-        Alert.alert("🎋 Event Saved!", "Panda Planner has secured your slot!", [
-          { text: "Awesome!", onPress: () => router.back() }
-        ]);
+      // 1. Save to Google Tasks API
+      await GoogleService.saveReminder({
+        title,
+        location: location || "Panda Reminder",
+        reminderTime: finalReminderTime,
+      }, accessToken);
+
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      Alert.alert("🎋 Panda Reminder Set!", "I've added this to your Google Tasks!", [
+        { text: "Yay!", onPress: () => router.back() }
+      ]);
+
+    } else {
+      const finalStart = combineDateAndTime(date, startTime);
+      const finalEnd = combineDateAndTime(date, endTime);
+
+      if (finalEnd <= finalStart) {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+        Alert.alert("🐼 Time Trouble!", "End time must be after start time");
+        setIsLoading(false);
+        return;
       }
-    } catch (error) {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      Alert.alert("🐼 Oops!", "Something went wrong. Please try again!");
-    } finally {
-      setIsLoading(false);
+
+      // 2. Save to Google Calendar API
+      await GoogleService.saveEvent({
+        title,
+        location,
+        startTime: finalStart.toISOString(),
+        endTime: finalEnd.toISOString(),
+      }, accessToken);
+
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      Alert.alert("🎋 Event Synced!", "Panda Planner added this to your Google Calendar!", [
+        { text: "Awesome!", onPress: () => router.back() }
+      ]);
     }
-  };
+  } catch (error) {
+    console.error("Sync Error:", error);
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+    Alert.alert("🐼 Oops!", "I couldn't talk to Google. Is your internet on?");
+  } finally {
+    setIsLoading(false);
+  }
+};
 
   const formatDate = (d: Date) => d.toLocaleDateString([], { year: 'numeric', month: 'long', day: 'numeric' });
   const formatTime = (d: Date) => d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
@@ -203,7 +211,6 @@ export default function AddEvent() {
               style={[
                 styles.toggleThumb,
                 {
-                  // Use a fixed width calculation so it doesn't jump
                   transform: [{ translateX: togglePosition }]
                 }
               ]}
@@ -703,14 +710,14 @@ toggleBackground: {
 
   modalOverlay: {
       flex: 1,
-      backgroundColor: 'rgba(0,0,0,0.4)', // Dim the background
-      justifyContent: 'flex-end', // Pull the picker to the bottom
+      backgroundColor: 'rgba(0,0,0,0.4)',
+      justifyContent: 'flex-end',
     },
     pickerContainer: {
       backgroundColor: 'white',
       borderTopLeftRadius: 25,
       borderTopRightRadius: 25,
-      paddingBottom: 40, // Space for the home indicator
+      paddingBottom: 40,
       paddingHorizontal: 20,
     },
     pickerHeader: {
@@ -729,7 +736,7 @@ toggleBackground: {
     doneText: {
       fontSize: 17,
       fontWeight: '700',
-      color: '#FF8787', // Using your Grapefruit color
+      color: '#FF8787',
       paddingHorizontal: 10,
     },
 });
