@@ -1,27 +1,52 @@
-import { View, Text, StyleSheet, Pressable, ScrollView, Switch, Modal, Alert } from "react-native";
-import { useState } from "react";
+import React, { useState } from "react";
+import { View, Text, StyleSheet, Pressable, ScrollView, Switch, Modal, Alert, Platform } from "react-native";
+import { useRouter } from "expo-router";
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from 'expo-haptics';
 
+// --- YOUR IMPORTS ---
 import { Colors } from "../theme/colors";
+import { useAuth } from '../context/AuthContext';
+import FirebaseService from "../services/FirebaseService";
 
 export default function SettingsScreen() {
+  const router = useRouter();
+
+  // 1. Access Global Auth State
+  const { setAccessToken, setUser, user } = useAuth();
+
+  // 2. UI State
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
-  const [googleSyncEnabled, setGoogleSyncEnabled] = useState(false);
+  const [googleSyncEnabled, setGoogleSyncEnabled] = useState(true);
   const [darkModeEnabled, setDarkModeEnabled] = useState(false);
   const [logoutModalVisible, setLogoutModalVisible] = useState(false);
 
+  // 3. Logout Logic
   const handleLogout = () => {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
     setLogoutModalVisible(true);
   };
 
-  const confirmLogout = () => {
+  const confirmLogout = async () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     setLogoutModalVisible(false);
-    // Add logout logic here
-    Alert.alert("👋 Goodbye!", "See you soon, panda friend!");
+
+    try {
+      // Clear Firebase
+      await FirebaseService.logOut();
+
+      // Clear Global State
+      setAccessToken(null);
+      setUser(null);
+
+      // Navigate to Login (assuming it's at the root or /login)
+      router.replace("/login");
+
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    } catch (error) {
+      Alert.alert("🐼 Error", "Failed to log out properly. Try again!");
+    }
   };
 
   return (
@@ -39,7 +64,7 @@ export default function SettingsScreen() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
       >
-        {/* Profile Section */}
+        {/* Profile Section - Dynamic Data */}
         <View style={styles.profileCard}>
           <LinearGradient
             colors={['#FF8787', '#FF9F9F']}
@@ -52,23 +77,24 @@ export default function SettingsScreen() {
             </View>
           </LinearGradient>
 
-          <Text style={styles.name}>Panda Enthusiast</Text>
-          <Text style={styles.email}>user@pandaplanner.com</Text>
+          {/* Show Google/Firebase display name or email */}
+          <Text style={styles.name}>{user?.displayName || "Panda Enthusiast"}</Text>
+          <Text style={styles.email}>{user?.email || "user@pandaplanner.com"}</Text>
 
           <View style={styles.statsContainer}>
             <View style={styles.stat}>
-              <Text style={styles.statNumber}>24</Text>
-              <Text style={styles.statLabel}>Events</Text>
+              <Text style={styles.statNumber}>Live</Text>
+              <Text style={styles.statLabel}>Syncing</Text>
             </View>
             <View style={styles.statDivider} />
             <View style={styles.stat}>
-              <Text style={styles.statNumber}>12</Text>
-              <Text style={styles.statLabel}>Reminders</Text>
+              <Text style={styles.statNumber}>1.0</Text>
+              <Text style={styles.statLabel}>Version</Text>
             </View>
           </View>
         </View>
 
-        {/* Settings Sections */}
+        {/* Preferences Section */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Ionicons name="options-outline" size={20} color="#FF8787" />
@@ -81,7 +107,10 @@ export default function SettingsScreen() {
             description="Get panda reminders"
             type="toggle"
             value={notificationsEnabled}
-            onValueChange={setNotificationsEnabled}
+            onValueChange={(val) => {
+                setNotificationsEnabled(val);
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            }}
           />
 
           <SettingItem
@@ -90,7 +119,11 @@ export default function SettingsScreen() {
             description="Sync with your Google Calendar"
             type="toggle"
             value={googleSyncEnabled}
-            onValueChange={setGoogleSyncEnabled}
+            onValueChange={(val) => {
+                setGoogleSyncEnabled(val);
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                if(!val) Alert.alert("Sync Off", "Events won't be sent to Google.");
+            }}
           />
 
           <SettingItem
@@ -99,7 +132,11 @@ export default function SettingsScreen() {
             description="Easy on the eyes"
             type="toggle"
             value={darkModeEnabled}
-            onValueChange={setDarkModeEnabled}
+            onValueChange={(val) => {
+                setDarkModeEnabled(val);
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                Alert.alert("🌙 Coming Soon", "Dark mode is still being polished by the pandas!");
+            }}
           />
         </View>
 
@@ -112,11 +149,11 @@ export default function SettingsScreen() {
           <SettingItem
             icon="sync"
             title="Sync Data"
-            description="Last synced: today"
+            description="Last synced: Just now"
             type="action"
             onPress={() => {
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-              Alert.alert("🔄 Syncing", "Panda is syncing your data...");
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+              Alert.alert("🔄 Refreshing", "Panda is checking your Google Calendar...");
             }}
           />
 
@@ -127,7 +164,7 @@ export default function SettingsScreen() {
             type="action"
             onPress={() => {
               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-              Alert.alert("📦 Export", "Your data is being prepared");
+              Alert.alert("📦 Export", "Preparing your plan summary...");
             }}
           />
         </View>
@@ -150,24 +187,13 @@ export default function SettingsScreen() {
           />
 
           <SettingItem
-            icon="document-text"
-            title="Privacy Policy"
-            description="How we protect your data"
-            type="action"
-            onPress={() => {
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-              Alert.alert("📄 Privacy Policy", "Your data is safe with Panda!");
-            }}
-          />
-
-          <SettingItem
             icon="help-circle"
             title="Help & Support"
             description="FAQs and contact us"
             type="action"
             onPress={() => {
               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-              Alert.alert("🐼 Help Center", "How can Panda assist you today?");
+              Alert.alert("🐼 Help", "Need assistance? Email support@pandaplanner.com");
             }}
           />
         </View>
@@ -221,30 +247,15 @@ export default function SettingsScreen() {
   );
 }
 
-function SettingItem({
-  icon,
-  title,
-  description,
-  type = "action",
-  value,
-  onValueChange,
-  onPress
-}: {
-  icon: string;
-  title: string;
-  description?: string;
-  type?: "toggle" | "action";
-  value?: boolean;
-  onValueChange?: (value: boolean) => void;
-  onPress?: () => void;
-}) {
+// Sub-component for Setting Items
+function SettingItem({ icon, title, description, type = "action", value, onValueChange, onPress }: any) {
   return (
     <Pressable
       style={styles.item}
       onPress={type === "action" ? onPress : undefined}
     >
       <View style={styles.itemIcon}>
-        <Ionicons name={icon as any} size={22} color="#FF8787" />
+        <Ionicons name={icon} size={22} color="#FF8787" />
       </View>
 
       <View style={styles.itemContent}>
@@ -270,242 +281,57 @@ function SettingItem({
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
+  container: { flex: 1 },
   decorativeCircle1: {
-    position: 'absolute',
-    top: -50,
-    right: -50,
-    width: 150,
-    height: 150,
-    borderRadius: 75,
-    backgroundColor: '#9BD8EC',
-    opacity: 0.1,
+    position: 'absolute', top: -50, right: -50, width: 150, height: 150, borderRadius: 75, backgroundColor: '#9BD8EC', opacity: 0.1,
   },
   decorativeCircle2: {
-    position: 'absolute',
-    bottom: -30,
-    left: -30,
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    backgroundColor: '#FFF7B2',
-    opacity: 0.2,
+    position: 'absolute', bottom: -30, left: -30, width: 120, height: 120, borderRadius: 60, backgroundColor: '#FFF7B2', opacity: 0.2,
   },
-  scrollContent: {
-    paddingBottom: 40,
-  },
+  scrollContent: { paddingBottom: 40 },
   profileCard: {
-    alignItems: 'center',
-    marginTop: 20,
-    marginHorizontal: 20,
-    marginBottom: 24,
-    paddingVertical: 32,
-    paddingHorizontal: 20,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 28,
-    shadowColor: '#9BD8EC',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.08,
-    shadowRadius: 12,
-    elevation: 3,
+    alignItems: 'center', marginTop: 20, marginHorizontal: 20, marginBottom: 24, paddingVertical: 32, paddingHorizontal: 20,
+    backgroundColor: '#FFFFFF', borderRadius: 28, shadowColor: '#9BD8EC', shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08, shadowRadius: 12, elevation: 3,
   },
-  avatarGradient: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    marginBottom: 16,
-  },
-  avatarContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  name: {
-    fontSize: 22,
-    fontWeight: '700',
-    color: '#3A3A3A',
-    marginBottom: 4,
-    letterSpacing: -0.3,
-  },
-  email: {
-    fontSize: 14,
-    color: '#9B9B9B',
-    marginBottom: 20,
-  },
-  statsContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 24,
-  },
-  stat: {
-    alignItems: 'center',
-  },
-  statNumber: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#FF8787',
-  },
-  statLabel: {
-    fontSize: 12,
-    color: '#9B9B9B',
-    marginTop: 2,
-  },
-  statDivider: {
-    width: 1,
-    height: 30,
-    backgroundColor: '#F0F0F0',
-  },
+  avatarGradient: { width: 100, height: 100, borderRadius: 50, marginBottom: 16 },
+  avatarContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  name: { fontSize: 22, fontWeight: '700', color: '#3A3A3A', marginBottom: 4, letterSpacing: -0.3 },
+  email: { fontSize: 14, color: '#9B9B9B', marginBottom: 20 },
+  statsContainer: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 24 },
+  stat: { alignItems: 'center' },
+  statNumber: { fontSize: 20, fontWeight: '700', color: '#FF8787' },
+  statLabel: { fontSize: 12, color: '#9B9B9B', marginTop: 2 },
+  statDivider: { width: 1, height: 30, backgroundColor: '#F0F0F0' },
   section: {
-    backgroundColor: '#FFFFFF',
-    marginHorizontal: 20,
-    marginBottom: 20,
-    borderRadius: 20,
-    overflow: 'hidden',
-    shadowColor: '#9BD8EC',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
-    shadowRadius: 8,
-    elevation: 2,
+    backgroundColor: '#FFFFFF', marginHorizontal: 20, marginBottom: 20, borderRadius: 20, overflow: 'hidden',
+    shadowColor: '#9BD8EC', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.04, shadowRadius: 8, elevation: 2,
   },
-  sectionHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingTop: 16,
-    paddingBottom: 12,
-    gap: 8,
-  },
-  sectionTitle: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#FF8787',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-  item: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    borderTopWidth: 1,
-    borderTopColor: '#F5F5F5',
-  },
-  itemIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
-    backgroundColor: '#FFF5F0',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 12,
-  },
-  itemContent: {
-    flex: 1,
-  },
-  itemTitle: {
-    fontSize: 16,
-    fontWeight: '500',
-    color: '#3A3A3A',
-    marginBottom: 2,
-  },
-  itemDescription: {
-    fontSize: 12,
-    color: '#9B9B9B',
-  },
+  sectionHeader: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingTop: 16, paddingBottom: 12, gap: 8 },
+  sectionTitle: { fontSize: 13, fontWeight: '600', color: '#FF8787', textTransform: 'uppercase', letterSpacing: 0.5 },
+  item: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 16, borderTopWidth: 1, borderTopColor: '#F5F5F5' },
+  itemIcon: { width: 36, height: 36, borderRadius: 10, backgroundColor: '#FFF5F0', justifyContent: 'center', alignItems: 'center', marginRight: 12 },
+  itemContent: { flex: 1 },
+  itemTitle: { fontSize: 16, fontWeight: '500', color: '#3A3A3A', marginBottom: 2 },
+  itemDescription: { fontSize: 12, color: '#9B9B9B' },
   logoutButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 12,
-    marginHorizontal: 20,
-    marginTop: 8,
-    marginBottom: 16,
-    paddingVertical: 16,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: '#FFE5E5',
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 12, marginHorizontal: 20,
+    marginTop: 8, marginBottom: 16, paddingVertical: 16, backgroundColor: '#FFFFFF', borderRadius: 20, borderWidth: 1, borderColor: '#FFE5E5',
   },
-  logoutText: {
-    fontSize: 16,
-    fontWeight: '500',
-    color: '#FF8787',
-  },
-  version: {
-    textAlign: 'center',
-    fontSize: 12,
-    color: '#C7C7C7',
-    marginTop: 8,
-    marginBottom: 20,
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.4)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
+  logoutText: { fontSize: 16, fontWeight: '500', color: '#FF8787' },
+  version: { textAlign: 'center', fontSize: 12, color: '#C7C7C7', marginTop: 8, marginBottom: 20 },
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0, 0, 0, 0.4)', justifyContent: 'center', alignItems: 'center' },
   modalContent: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 28,
-    padding: 24,
-    width: '80%',
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 20,
-    elevation: 5,
+    backgroundColor: '#FFFFFF', borderRadius: 28, padding: 24, width: '80%', alignItems: 'center',
+    shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 20, elevation: 5,
   },
-  modalIcon: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: '#FFF5F0',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 20,
-  },
-  modalTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#3A3A3A',
-    marginBottom: 8,
-  },
-  modalMessage: {
-    fontSize: 14,
-    color: '#9B9B9B',
-    textAlign: 'center',
-    marginBottom: 24,
-    lineHeight: 20,
-  },
-  modalButtons: {
-    flexDirection: 'row',
-    gap: 12,
-    width: '100%',
-  },
-  modalButton: {
-    flex: 1,
-    paddingVertical: 12,
-    borderRadius: 12,
-    alignItems: 'center',
-  },
-  modalButtonCancel: {
-    backgroundColor: '#F5F5F5',
-  },
-  modalButtonConfirm: {
-    backgroundColor: '#FF8787',
-  },
-  modalButtonTextCancel: {
-    fontSize: 15,
-    fontWeight: '500',
-    color: '#5C5C5C',
-  },
-  modalButtonTextConfirm: {
-    fontSize: 15,
-    fontWeight: '500',
-    color: '#FFFFFF',
-  },
+  modalIcon: { width: 80, height: 80, borderRadius: 40, backgroundColor: '#FFF5F0', justifyContent: 'center', alignItems: 'center', marginBottom: 20 },
+  modalTitle: { fontSize: 20, fontWeight: '700', color: '#3A3A3A', marginBottom: 8 },
+  modalMessage: { fontSize: 14, color: '#9B9B9B', textAlign: 'center', marginBottom: 24, lineHeight: 20 },
+  modalButtons: { flexDirection: 'row', gap: 12, width: '100%' },
+  modalButton: { flex: 1, paddingVertical: 12, borderRadius: 12, alignItems: 'center' },
+  modalButtonCancel: { backgroundColor: '#F5F5F5' },
+  modalButtonConfirm: { backgroundColor: '#FF8787' },
+  modalButtonTextCancel: { fontSize: 15, fontWeight: '500', color: '#5C5C5C' },
+  modalButtonTextConfirm: { fontSize: 15, fontWeight: '500', color: '#FFFFFF' },
 });
