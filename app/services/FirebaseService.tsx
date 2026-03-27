@@ -1,14 +1,14 @@
-import { 
-  addDoc, 
-  collection, 
-  getDocs, 
-  query, 
-  Timestamp, 
-  orderBy 
+import {
+  addDoc,
+  collection,
+  getDocs,
+  query,
+  Timestamp,
+  orderBy
 } from 'firebase/firestore';
-import { 
-  signInWithEmailAndPassword, 
-  createUserWithEmailAndPassword, 
+import {
+  signInWithEmailAndPassword,
+  createUserWithEmailAndPassword,
   signOut,
   User
 } from 'firebase/auth';
@@ -39,6 +39,17 @@ class FirebaseService {
     return credential.user;
   }
 
+  async loginWithGoogle(idToken: string) {
+    try {
+      const credential = GoogleAuthProvider.credential(idToken);
+      const result = await signInWithCredential(auth, credential);
+      return result.user;
+    } catch (error) {
+      console.error("Google Auth Error:", error);
+      throw error;
+    }
+  }
+
   async logOut(): Promise<void> {
     await signOut(auth);
   }
@@ -52,7 +63,7 @@ class FirebaseService {
 
     try {
       const scheduleRef = collection(db, 'users', userId, 'schedules');
-      
+
       const docRef = await addDoc(scheduleRef, {
         title: eventData.title,
         startTime: Timestamp.fromDate(new Date(eventData.startTime)),
@@ -80,11 +91,11 @@ class FirebaseService {
         collection(db, 'users', userId, 'schedules'),
         orderBy('startTime', 'asc') // Helpful for calendar views
       );
-      
+
       const querySnapshot = await getDocs(q);
-      return querySnapshot.docs.map(doc => ({ 
-        id: doc.id, 
-        ...doc.data() 
+      return querySnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
       })) as PlannerEvent[];
     } catch (error) {
       console.error("Firestore Fetch Error: ", error);
