@@ -12,6 +12,8 @@ import {
   Animated,
   Dimensions,
   ActivityIndicator,
+  Keyboard,
+  TouchableWithoutFeedback,
 } from "react-native";
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from "@expo/vector-icons";
@@ -46,6 +48,7 @@ export default function ChatImport({ visible, onClose, onImportComplete }: ChatI
   const [isProcessing, setIsProcessing] = useState(false);
   const [extractedEvents, setExtractedEvents] = useState<any[]>([]);
   const flatListRef = useRef<FlatList>(null);
+  const inputRef = useRef<TextInput>(null);
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(height)).current;
 
@@ -64,6 +67,10 @@ export default function ChatImport({ visible, onClose, onImportComplete }: ChatI
           useNativeDriver: true,
         }),
       ]).start();
+      // Auto-focus input when modal opens
+      setTimeout(() => {
+        inputRef.current?.focus();
+      }, 300);
     } else {
       Animated.parallel([
         Animated.timing(fadeAnim, {
@@ -90,30 +97,10 @@ export default function ChatImport({ visible, onClose, onImportComplete }: ChatI
 
   // Natural language processing simulation
   const parseMessage = (text: string) => {
-    // This is a simplified NLP simulation
-    // In production, you'd want to use a proper NLP library or API
     const events = [];
-
-    // Check for date patterns
     const today = new Date();
     const tomorrow = new Date(today);
     tomorrow.setDate(tomorrow.getDate() + 1);
-
-    const patterns = [
-      { regex: /tomorrow/i, getDate: () => tomorrow },
-      { regex: /today/i, getDate: () => today },
-      { regex: /next (monday|tuesday|wednesday|thursday|friday|saturday|sunday)/i, getDay: (match: string) => {
-        const days = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
-        const targetDay = match.toLowerCase();
-        const currentDay = today.getDay();
-        let daysToAdd = days.indexOf(targetDay) - currentDay;
-        if (daysToAdd <= 0) daysToAdd += 7;
-        const date = new Date(today);
-        date.setDate(date.getDate() + daysToAdd);
-        return date;
-      }},
-      { regex: /at (\d{1,2})(?::(\d{2}))?\s*(am|pm)?/i, extractTime: true }
-    ];
 
     // Extract title (remove date/time patterns)
     let title = text
@@ -153,13 +140,11 @@ export default function ChatImport({ visible, onClose, onImportComplete }: ChatI
 
     // Simulate typing delay
     setTimeout(() => {
-      // Parse the message
       const extracted = parseMessage(message);
 
       if (extracted.length > 0) {
         setExtractedEvents(prev => [...prev, ...extracted]);
 
-        // Add bot response
         const botMsg: Message = {
           id: (Date.now() + 1).toString(),
           text: `🐼 I found ${extracted.length} event${extracted.length > 1 ? 's' : ''} in your message!\n\n${extracted.map(e => `• ${e.title} on ${new Date(e.date).toLocaleDateString()} at ${e.startTime}`).join('\n')}\n\nWould you like me to add ${extracted.length > 1 ? 'these' : 'this'} to your calendar?`,
@@ -168,7 +153,6 @@ export default function ChatImport({ visible, onClose, onImportComplete }: ChatI
         };
         setMessages(prev => [...prev, botMsg]);
       } else {
-        // Add helpful response when no event detected
         const botMsg: Message = {
           id: (Date.now() + 1).toString(),
           text: "🤔 Hmm, I couldn't find any event details in that message. Try something like:\n\n• 'Meeting with John tomorrow at 3pm'\n• 'Lunch on Friday at 12:30'\n• 'Gym session every Tuesday and Thursday'",
@@ -188,7 +172,6 @@ export default function ChatImport({ visible, onClose, onImportComplete }: ChatI
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     setIsProcessing(true);
 
-    // Add confirmation message
     const confirmMsg: Message = {
       id: Date.now().toString(),
       text: `🎉 Great! I've added ${extractedEvents.length} event${extractedEvents.length > 1 ? 's' : ''} to your schedule. Panda will keep you organized!`,
@@ -197,12 +180,10 @@ export default function ChatImport({ visible, onClose, onImportComplete }: ChatI
     };
     setMessages(prev => [...prev, confirmMsg]);
 
-    // Simulate processing
     setTimeout(() => {
       onImportComplete?.(extractedEvents);
       setIsProcessing(false);
 
-      // Auto close after 2 seconds
       setTimeout(() => {
         onClose();
       }, 2000);
@@ -298,7 +279,7 @@ export default function ChatImport({ visible, onClose, onImportComplete }: ChatI
               </View>
             </View>
 
-            {/* Chat Messages */}
+            {/* Chat Messages - Now with proper flex */}
             <FlatList
               ref={flatListRef}
               data={messages}
@@ -307,6 +288,7 @@ export default function ChatImport({ visible, onClose, onImportComplete }: ChatI
               contentContainerStyle={styles.chatContent}
               showsVerticalScrollIndicator={false}
               renderItem={renderMessage}
+              keyboardShouldPersistTaps="handled"
             />
 
             {/* Import Confirmation Bar */}
@@ -329,33 +311,38 @@ export default function ChatImport({ visible, onClose, onImportComplete }: ChatI
               </View>
             )}
 
-            {/* Input Area */}
+            {/* Input Area - Fixed positioning */}
             <KeyboardAvoidingView
-              behavior={Platform.OS === "ios" ? "padding" : undefined}
-              keyboardVerticalOffset={Platform.OS === "ios" ? 100 : 0}
+              behavior={Platform.OS === "ios" ? "padding" : "height"}
+              keyboardVerticalOffset={Platform.OS === "ios" ? 20 : 0}
+              style={styles.keyboardAvoidingView}
             >
-              <View style={styles.inputContainer}>
-                <TextInput
-                  style={styles.input}
-                  placeholder="Type your schedule naturally..."
-                  placeholderTextColor="#C7C7C7"
-                  value={message}
-                  onChangeText={setMessage}
-                  onSubmitEditing={sendMessage}
-                  editable={!isProcessing}
-                  multiline
-                />
-                <Pressable
-                  style={[styles.sendButton, !message.trim() && styles.sendButtonDisabled]}
-                  onPress={sendMessage}
-                  disabled={!message.trim() || isProcessing}
-                >
-                  {isProcessing ? (
-                    <ActivityIndicator size="small" color="#FFFFFF" />
-                  ) : (
-                    <Ionicons name="send" size={20} color="#FFFFFF" />
-                  )}
-                </Pressable>
+              <View style={styles.inputWrapper}>
+                <View style={styles.inputContainer}>
+                  <TextInput
+                    ref={inputRef}
+                    style={styles.input}
+                    placeholder="Type your schedule naturally..."
+                    placeholderTextColor="#C7C7C7"
+                    value={message}
+                    onChangeText={setMessage}
+                    onSubmitEditing={sendMessage}
+                    editable={!isProcessing}
+                    multiline
+                    maxHeight={100}
+                  />
+                  <Pressable
+                    style={[styles.sendButton, (!message.trim() || isProcessing) && styles.sendButtonDisabled]}
+                    onPress={sendMessage}
+                    disabled={!message.trim() || isProcessing}
+                  >
+                    {isProcessing ? (
+                      <ActivityIndicator size="small" color="#FFFFFF" />
+                    ) : (
+                      <Ionicons name="send" size={20} color="#FFFFFF" />
+                    )}
+                  </Pressable>
+                </View>
               </View>
             </KeyboardAvoidingView>
           </LinearGradient>
@@ -380,7 +367,7 @@ const styles = StyleSheet.create({
   },
   modalContainer: {
     width: '100%',
-    height: '85%',
+    height: '80%', // Increased from 85% to give more space
     borderTopLeftRadius: 28,
     borderTopRightRadius: 28,
     overflow: 'hidden',
@@ -389,13 +376,14 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingHorizontal: 20,
     paddingTop: 20,
+    paddingBottom: Platform.OS === 'ios' ? 34 : 20, // Safe area for iOS
     position: 'relative',
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 20,
+    marginBottom: 16,
     paddingBottom: 12,
     borderBottomWidth: 1,
     borderBottomColor: '#F0F0F0',
@@ -450,7 +438,8 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   chatContent: {
-    paddingBottom: 20,
+    paddingBottom: 16,
+    paddingTop: 8,
   },
   messageContainer: {
     flexDirection: 'row',
@@ -544,13 +533,19 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#FFFFFF',
   },
-  inputContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    paddingTop: 12,
+  keyboardAvoidingView: {
+    marginTop: 8,
+  },
+  inputWrapper: {
+    paddingTop: 8,
     borderTopWidth: 1,
     borderTopColor: '#F0F0F0',
+  },
+  inputContainer: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    gap: 12,
+    paddingVertical: 12,
   },
   input: {
     flex: 1,
