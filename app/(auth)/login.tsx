@@ -67,6 +67,12 @@ export default function LoginScreen() {
   });
 
   useEffect(() => {
+    if (request) {
+      console.log('✅ Redirect URI:', request.redirectUri);
+    }
+  }, [request])
+
+  useEffect(() => {
     if (response?.type === 'success') {
       const { authentication } = response;
       const token = authentication?.accessToken;
