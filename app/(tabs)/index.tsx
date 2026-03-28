@@ -5,10 +5,11 @@ import { useRouter } from "expo-router";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Alert, Animated, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
 
-// --- YOUR IMPORTS ---
+// --- PROJECT IMPORTS ---
 import EventCard from "../(components)/EventCard";
 import { useAuth } from '../context/AuthContext';
 import FirebaseService from "../services/FirebaseService";
+import MLService, { Suggestion } from "../services/MLService";
 
 export default function Home() {
   const router = useRouter();
@@ -16,12 +17,11 @@ export default function Home() {
 
   const [refreshing, setRefreshing] = useState(false);
   const [events, setEvents] = useState<any[]>([]);
+  const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
   const [selectedFilter, setSelectedFilter] = useState('all');
 
   const addButtonScale = useRef(new Animated.Value(1)).current;
   const addButtonRotate = useRef(new Animated.Value(0)).current;
-
-  // Inside your Home component:
 
   const fetchAllEvents = useCallback(async () => {
     try {
@@ -46,7 +46,6 @@ export default function Home() {
 
       const firestoreEvents = await FirebaseService.getUserEvents();
       const formattedFirebase = firestoreEvents.map((event: any) => {
-        // Handle both Firestore Timestamps and ISO Strings
         const start = event.startTime?.seconds ? new Date(event.startTime.seconds * 1000) : new Date(event.startTime);
         const end = event.endTime?.seconds ? new Date(event.endTime.seconds * 1000) : new Date(event.endTime);
 
@@ -67,14 +66,23 @@ export default function Home() {
       );
 
       setEvents(combined);
+
+      // Generate Predictive Suggestions via ML Service
+      if (combined.length > 0) {
+        const mlSuggestions = await MLService.getPredictiveSuggestions(combined);
+        setSuggestions(mlSuggestions);
+      } else {
+        setSuggestions([]);
+      }
+
     } catch (error) {
       console.error("Fetch error:", error);
     }
-  }, [accessToken]); // fetchAllEvents now depends on accessToken
+  }, [accessToken]);
 
   useEffect(() => {
     fetchAllEvents();
-  }, [fetchAllEvents]); // useEffect now properly depends on the memoized function
+  }, [fetchAllEvents]);
 
   const getConflictedIds = () => {
     const conflicted = new Set<string>();
@@ -100,10 +108,6 @@ export default function Home() {
   };
 
   const conflicts = getConflictedIds();
-
-  useEffect(() => {
-    fetchAllEvents();
-  }, [accessToken]);
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
@@ -142,12 +146,6 @@ export default function Home() {
     return "Good Evening";
   };
 
-  const getDateString = () => {
-    return new Date().toLocaleDateString('en-US', {
-      weekday: 'long', month: 'long', day: 'numeric'
-    });
-  };
-
   return (
     <LinearGradient colors={['#FFFFFF', '#FFFBF5']} style={styles.container}>
       <View style={styles.decorativeBlob1} />
@@ -168,7 +166,7 @@ export default function Home() {
               </View>
               <View>
                 <Text style={styles.headerTitle}>Panda Planner</Text>
-                <Text style={styles.subtitle}>{getDateString()}</Text>
+                <Text style={styles.subtitle}>{new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}</Text>
               </View>
             </View>
             <Animated.View style={[styles.addButtonWrapper, { transform: [{ scale: addButtonScale }] }]}>
@@ -191,6 +189,38 @@ export default function Home() {
           </View>
         </View>
 
+        {/* --- SMART SUGGESTIONS (ML FEED) --- */}
+        {suggestions.length > 0 && selectedFilter !== 'upcoming' && (
+          <View style={styles.suggestionSection}>
+            <View style={styles.sectionHeader}>
+              <View style={styles.sectionTitleContainer}>
+                <Ionicons name="sparkles" size={20} color="#9BD8EC" />
+                <Text style={styles.sectionTitle}>Smart Suggestions</Text>
+              </View>
+            </View>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.suggestionScroll}
+            >
+              {suggestions.map((item) => (
+                <Pressable
+                  key={item.id}
+                  style={styles.suggestionCard}
+                  onPress={() => Alert.alert("ML Insight", `This slot has a ${(item.confidenceScore * 100).toFixed(0)}% productivity rating based on your current schedule.`)}
+                >
+                  <View style={styles.suggestionTag}>
+                    <Text style={styles.suggestionTagText}>{item.type.replace('_', ' ')}</Text>
+                  </View>
+                  <Text style={styles.suggestionTitle}>{item.title}</Text>
+                  <Text style={styles.suggestionTime}>{item.startTime} - {item.endTime}</Text>
+                  <Text style={styles.suggestionDesc} numberOfLines={2}>{item.description}</Text>
+                </Pressable>
+              ))}
+            </ScrollView>
+          </View>
+        )}
+
         <View style={styles.filterContainer}>
           {['all', 'today', 'upcoming'].map((id) => (
             <Pressable
@@ -202,7 +232,7 @@ export default function Home() {
               }}
             >
               <Text style={[styles.filterText, selectedFilter === id && styles.filterTextActive]}>
-                {id === 'all' ? 'All Events' : id === 'today' ? 'Today' : 'Upcoming'}
+                {id.toUpperCase()}
               </Text>
             </Pressable>
           ))}
@@ -250,7 +280,7 @@ export default function Home() {
 
         <View style={styles.tipCard}>
           <View style={styles.tipIconContainer}>
-            <Ionicons name="bulb-outline" size={24} color="#FFF7B2" />
+            <Ionicons name="bulb-outline" size={24} color="#8B6B4D" />
           </View>
           <View style={styles.tipContent}>
             <Text style={styles.tipTitle}>🐼 Panda Tip</Text>
@@ -298,23 +328,31 @@ const styles = StyleSheet.create({
   statIconContainer: { width: 36, height: 36, borderRadius: 18, justifyContent: 'center', alignItems: 'center', marginBottom: 12 },
   statNumber: { fontSize: 24, fontWeight: '700', color: '#3A3A3A', marginBottom: 4 },
   statLabel: { fontSize: 12, color: '#9B9B9B' },
+  suggestionSection: { marginBottom: 24 },
+  suggestionScroll: { paddingLeft: 20, paddingRight: 10, gap: 12 },
+  suggestionCard: { width: 220, backgroundColor: '#9BD8EC15', borderRadius: 24, padding: 18, borderWidth: 1, borderColor: '#9BD8EC30' },
+  suggestionTag: { backgroundColor: '#9BD8EC', alignSelf: 'flex-start', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12, marginBottom: 10 },
+  suggestionTagText: { fontSize: 10, fontWeight: '800', color: '#FFFFFF', textTransform: 'uppercase' },
+  suggestionTitle: { fontSize: 16, fontWeight: '700', color: '#3A3A3A', marginBottom: 4 },
+  suggestionTime: { fontSize: 12, color: '#5C5C5C', fontWeight: '600', marginBottom: 8 },
+  suggestionDesc: { fontSize: 12, color: '#7A7A7A', lineHeight: 18 },
   filterContainer: { flexDirection: 'row', paddingHorizontal: 20, marginBottom: 24, gap: 12 },
-  filterTab: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 8, borderRadius: 20, backgroundColor: '#FFFFFF' },
+  filterTab: { flex: 1, paddingVertical: 10, borderRadius: 20, backgroundColor: '#FFFFFF', alignItems: 'center', elevation: 1 },
   filterTabActive: { backgroundColor: '#FFF5F0', borderWidth: 1, borderColor: '#FFE5E5' },
-  filterText: { fontSize: 14, color: '#9B9B9B', fontWeight: '500' },
+  filterText: { fontSize: 12, color: '#9B9B9B', fontWeight: '700' },
   filterTextActive: { color: '#FF8787' },
   eventsSection: { paddingHorizontal: 20 },
   sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
   sectionTitleContainer: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  sectionTitle: { fontSize: 18, fontWeight: '600', color: '#3A3A3A' },
+  sectionTitle: { fontSize: 18, fontWeight: '700', color: '#3A3A3A' },
   eventsList: { gap: 12 },
-  emptyState: { alignItems: 'center', paddingVertical: 48, paddingHorizontal: 32, backgroundColor: '#FFFFFF', borderRadius: 20, marginTop: 8 },
+  emptyState: { alignItems: 'center', paddingVertical: 48, paddingHorizontal: 32, backgroundColor: '#FFFFFF', borderRadius: 20 },
   emptyIconContainer: { width: 80, height: 80, borderRadius: 40, backgroundColor: '#FFF5F0', justifyContent: 'center', alignItems: 'center', marginBottom: 20 },
   emptyTitle: { fontSize: 18, fontWeight: '600', color: '#3A3A3A', marginBottom: 8 },
   emptyText: { fontSize: 14, color: '#9B9B9B', textAlign: 'center', lineHeight: 20 },
-  tipCard: { flexDirection: 'row', backgroundColor: '#FFF7B2', marginHorizontal: 20, marginTop: 24, padding: 16, borderRadius: 20, gap: 12 },
-  tipIconContainer: { width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.5)', justifyContent: 'center', alignItems: 'center' },
+  tipCard: { flexDirection: 'row', backgroundColor: '#FFF7B2', marginHorizontal: 20, marginTop: 24, padding: 16, borderRadius: 24, gap: 12, elevation: 1 },
+  tipIconContainer: { width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.6)', justifyContent: 'center', alignItems: 'center' },
   tipContent: { flex: 1 },
-  tipTitle: { fontSize: 14, fontWeight: '600', color: '#8B6B4D', marginBottom: 4 },
-  tipText: { fontSize: 13, color: '#8B6B4D', lineHeight: 18 },
+  tipTitle: { fontSize: 14, fontWeight: '700', color: '#8B6B4D', marginBottom: 4 },
+  tipText: { fontSize: 13, color: '#8B6B4D', lineHeight: 20 },
 });

@@ -1,13 +1,12 @@
-import { View, Text, StyleSheet, Pressable, Alert, ActivityIndicator, Animated, KeyboardAvoidingView, Platform, ScrollView } from "react-native";
-import { useRouter } from "expo-router";
-import { useState, useRef, useEffect } from "react";
 import { Ionicons } from "@expo/vector-icons";
-import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
+import { LinearGradient } from 'expo-linear-gradient';
+import { useRouter } from "expo-router";
+import { useEffect, useRef, useState } from "react";
+import { ActivityIndicator, Alert, Animated, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 
 import AppInput from "../(components)/AppInput";
 import PrimaryButton from "../(components)/PrimaryButton";
-import { Colors } from "../theme/colors";
 import FirebaseService from "../services/FirebaseService";
 
 export default function SignupScreen() {
@@ -20,35 +19,20 @@ export default function SignupScreen() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
-  // Animation values
+  // Animation logic remains the same...
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(50)).current;
   const scaleAnim = useRef(new Animated.Value(0.95)).current;
 
   useEffect(() => {
     Animated.parallel([
-      Animated.timing(fadeAnim, {
-        toValue: 1,
-        duration: 600,
-        useNativeDriver: true,
-      }),
-      Animated.spring(slideAnim, {
-        toValue: 0,
-        tension: 50,
-        friction: 7,
-        useNativeDriver: true,
-      }),
-      Animated.spring(scaleAnim, {
-        toValue: 1,
-        tension: 50,
-        friction: 7,
-        useNativeDriver: true,
-      }),
+      Animated.timing(fadeAnim, { toValue: 1, duration: 600, useNativeDriver: true }),
+      Animated.spring(slideAnim, { toValue: 0, tension: 50, friction: 7, useNativeDriver: true }),
+      Animated.spring(scaleAnim, { toValue: 1, tension: 50, friction: 7, useNativeDriver: true }),
     ]).start();
   }, []);
 
   const handleSignup = async () => {
-    // Validation
     if (!email || !password || !confirmPassword) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       Alert.alert("🐼 Oops!", "Please fill in all fields");
@@ -71,16 +55,22 @@ export default function SignupScreen() {
     setIsLoading(true);
 
     try {
+      // This now creates both the Auth user and the Firestore document
       await FirebaseService.signUp(email, password);
+      
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      // navigation occurs after successful async operations
       router.replace("/(tabs)");
     } catch (error: any) {
+      console.error("Signup Process Error:", error);
       let errorMessage = "Could not create account.";
 
       if (error.code === 'auth/email-already-in-use') {
         errorMessage = "That email address is already in use!";
       } else if (error.code === 'auth/invalid-email') {
         errorMessage = "That email address is invalid!";
+      } else if (error.message.includes('permission-denied')) {
+        errorMessage = "Database permission denied. Check Firestore rules.";
       }
 
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
