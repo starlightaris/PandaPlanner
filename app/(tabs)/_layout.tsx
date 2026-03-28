@@ -1,11 +1,10 @@
 import { Ionicons } from "@expo/vector-icons";
 import { decode } from 'base-64';
 import { Tabs, useRouter } from "expo-router";
-import { Pressable, StyleSheet, View, Animated, Dimensions, Text, Modal } from "react-native";
+import { Pressable, StyleSheet, View, Animated, Dimensions, Text } from "react-native";
 import { useState, useRef, useEffect } from "react";
 import { LinearGradient } from 'expo-linear-gradient';
 import { Colors } from "../theme/colors";
-import ChatImport from "../chat-import";
 import * as Haptics from 'expo-haptics';
 
 const { width } = Dimensions.get('window');
@@ -16,7 +15,6 @@ if (typeof atob === 'undefined') {
 
 export default function TabsLayout() {
   const router = useRouter();
-  const [showChatImport, setShowChatImport] = useState(false);
   const [showTooltip, setShowTooltip] = useState(false);
   const fabScale = useRef(new Animated.Value(1)).current;
   const fabRotate = useRef(new Animated.Value(0)).current;
@@ -92,13 +90,8 @@ export default function TabsLayout() {
       }),
     ]).start();
 
-    setShowChatImport(true);
-  };
-
-  const handleImportComplete = (events: any[]) => {
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    console.log('Imported events:', events);
-    // You can add logic here to refresh your calendar/todo data
+    // Navigate to chat page instead of opening modal
+    router.push("/chat-import");
   };
 
   const rotateInterpolate = fabRotate.interpolate({
@@ -210,13 +203,6 @@ export default function TabsLayout() {
           </LinearGradient>
         </Animated.View>
       </View>
-
-      {/* Chat Import Modal */}
-      <ChatImport
-        visible={showChatImport}
-        onClose={() => setShowChatImport(false)}
-        onImportComplete={handleImportComplete}
-      />
     </>
   );
 }
@@ -265,22 +251,6 @@ const styles = StyleSheet.create({
     borderRadius: 30,
     justifyContent: "center",
     alignItems: "center",
-  },
-  fabLabelContainer: {
-    position: 'absolute',
-    right: 70,
-    top: 18,
-    opacity: 0.9,
-  },
-  fabLabel: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 20,
-  },
-  fabLabelText: {
-    color: '#FFFFFF',
-    fontSize: 12,
-    fontWeight: '500',
   },
   tooltipContainer: {
     position: 'absolute',
