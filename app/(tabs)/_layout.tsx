@@ -1,5 +1,4 @@
 import { Ionicons } from "@expo/vector-icons";
-import { decode } from 'base-64';
 import { Tabs, useRouter } from "expo-router";
 import { Pressable, StyleSheet, View, Animated, Dimensions, Text } from "react-native";
 import { useState, useRef, useEffect } from "react";
@@ -8,10 +7,6 @@ import { Colors } from "../theme/colors";
 import * as Haptics from 'expo-haptics';
 
 const { width } = Dimensions.get('window');
-
-if (typeof atob === 'undefined') {
-  global.atob = decode;
-}
 
 export default function TabsLayout() {
   const router = useRouter();
