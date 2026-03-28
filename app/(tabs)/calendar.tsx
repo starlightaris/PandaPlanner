@@ -92,7 +92,6 @@ export default function CalendarScreen() {
   const onRefresh = () => {
     setRefreshing(true);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    // Simulate data refresh
     setTimeout(() => {
       setRefreshing(false);
     }, 1500);
@@ -100,8 +99,6 @@ export default function CalendarScreen() {
 
   const handleAddEvent = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-
-    // Animate the + button
     Animated.sequence([
       Animated.timing(addButtonScale, {
         toValue: 0.8,
@@ -124,12 +121,42 @@ export default function CalendarScreen() {
         useNativeDriver: true,
       }),
     ]).start();
-
     router.push("/add-event");
   };
 
   const getEventsForDate = (date: string) => {
     return mockEvents.filter(event => event.date === date);
+  };
+
+  // Get events for a week (Sunday to Saturday)
+  const getEventsForWeek = (date: string) => {
+    const startDate = new Date(date);
+    startDate.setDate(startDate.getDate() - startDate.getDay()); // Start from Sunday
+    const weekEvents = [];
+
+    for (let i = 0; i < 7; i++) {
+      const currentDate = new Date(startDate);
+      currentDate.setDate(startDate.getDate() + i);
+      const dateStr = currentDate.toISOString().split('T')[0];
+      const events = mockEvents.filter(event => event.date === dateStr);
+      weekEvents.push({ date: dateStr, events });
+    }
+    return weekEvents;
+  };
+
+  const getEventsForMonth = () => {
+    const [year, month] = currentMonth.split('-');
+    const daysInMonth = new Date(parseInt(year), parseInt(month), 0).getDate();
+    const monthEvents = [];
+
+    for (let i = 1; i <= daysInMonth; i++) {
+      const dateStr = `${year}-${month}-${String(i).padStart(2, '0')}`;
+      const events = mockEvents.filter(event => event.date === dateStr);
+      if (events.length > 0) {
+        monthEvents.push({ date: dateStr, events });
+      }
+    }
+    return monthEvents;
   };
 
   const getMarkedDates = () => {
@@ -141,7 +168,6 @@ export default function CalendarScreen() {
       }
     };
 
-    // Mark dates with events
     mockEvents.forEach(event => {
       if (!marked[event.date]) {
         marked[event.date] = {
@@ -182,6 +208,122 @@ export default function CalendarScreen() {
     inputRange: [0, 1],
     outputRange: ['0deg', '45deg']
   });
+
+  // Render Month View
+  const renderMonthView = () => {
+    const monthEvents = getEventsForMonth();
+    return (
+      <View style={styles.monthViewCard}>
+        <Text style={styles.monthViewTitle}>{currentMonth}</Text>
+        {monthEvents.length > 0 ? (
+          monthEvents.map((item) => (
+            <Pressable
+              key={item.date}
+              style={styles.monthEventItem}
+              onPress={() => {
+                setSelectedDate(item.date);
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              }}
+            >
+              <Text style={styles.monthEventDate}>
+                {new Date(item.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+              </Text>
+              <View style={styles.monthEventList}>
+                {item.events.slice(0, 2).map((event) => (
+                  <Text key={event.id} style={styles.monthEventTitle}>
+                    • {event.title}
+                  </Text>
+                ))}
+                {item.events.length > 2 && (
+                  <Text style={styles.monthEventMore}>+{item.events.length - 2} more</Text>
+                )}
+              </View>
+            </Pressable>
+          ))
+        ) : (
+          <Text style={styles.monthEmptyText}>No events this month</Text>
+        )}
+      </View>
+    );
+  };
+
+  // Render Week View
+  const renderWeekView = () => {
+    const weekEvents = getEventsForWeek(selectedDate);
+    const weekDays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+    return (
+      <View style={styles.weekViewCard}>
+        {weekEvents.map((day, index) => (
+          <Pressable
+            key={day.date}
+            style={[
+              styles.weekDayItem,
+              day.date === selectedDate && styles.weekDaySelected
+            ]}
+            onPress={() => {
+              setSelectedDate(day.date);
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            }}
+          >
+            <Text style={[
+              styles.weekDayName,
+              day.date === selectedDate && styles.weekDayNameSelected
+            ]}>
+              {weekDays[index]}
+            </Text>
+            <Text style={[
+              styles.weekDayDate,
+              day.date === selectedDate && styles.weekDayDateSelected
+            ]}>
+              {new Date(day.date).getDate()}
+            </Text>
+            {day.events.length > 0 && (
+              <View style={styles.weekEventIndicator}>
+                <Text style={styles.weekEventCount}>{day.events.length}</Text>
+              </View>
+            )}
+          </Pressable>
+        ))}
+      </View>
+    );
+  };
+
+  // Render Day View
+  const renderDayView = () => {
+    const dayEvents = getEventsForDate(selectedDate);
+    return (
+      <View style={styles.dayViewCard}>
+        <Text style={styles.dayViewTitle}>{formatDate(selectedDate)}</Text>
+        {dayEvents.length > 0 ? (
+          dayEvents.map((event) => (
+            <EventCard
+              key={event.id}
+              title={event.title}
+              location={event.location}
+              date={event.date}
+              startTime={event.startTime}
+              endTime={event.endTime}
+              category={event.category}
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                router.push(`/event/${event.id}`);
+              }}
+              style={styles.eventCard}
+            />
+          ))
+        ) : (
+          <View style={styles.emptyDayState}>
+            <Ionicons name="calendar-outline" size={48} color="#FF8787" />
+            <Text style={styles.emptyDayTitle}>No events</Text>
+            <Text style={styles.emptyDayText}>
+              Tap the + button to add an event for this day
+            </Text>
+          </View>
+        )}
+      </View>
+    );
+  };
 
   return (
     <LinearGradient
@@ -280,113 +422,118 @@ export default function CalendarScreen() {
             />
           }
         >
-          {/* Calendar */}
-          <View style={styles.calendarCard}>
-            <Calendar
-              onDayPress={(day) => {
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                setSelectedDate(day.dateString);
-              }}
-              onMonthChange={(month) => {
-                setCurrentMonth(`${month.year}-${String(month.month).padStart(2, '0')}`);
-              }}
-              markedDates={getMarkedDates()}
-              theme={{
-                calendarBackground: 'transparent',
-                todayTextColor: '#FF8787',
-                arrowColor: '#FF8787',
-                monthTextColor: '#3A3A3A',
-                textMonthFontWeight: '600',
-                textDayFontWeight: '500',
-                textDayHeaderFontWeight: '500',
-                textDayHeaderFontSize: 12,
-                textDayFontSize: 14,
-                'stylesheet.calendar.header': {
-                  dayTextAtIndex0: {
-                    color: '#FF8787',
-                  },
-                  dayTextAtIndex6: {
-                    color: '#FF8787',
-                  },
-                },
-              }}
-              style={styles.calendar}
-            />
-          </View>
-
-          {/* Stats Summary */}
-          <View style={styles.statsCard}>
-            <View style={styles.statsItem}>
-              <Text style={styles.statsNumber}>{mockEvents.length}</Text>
-              <Text style={styles.statsLabel}>Total Events</Text>
-            </View>
-            <View style={styles.statsDivider} />
-            <View style={styles.statsItem}>
-              <Text style={styles.statsNumber}>
-                {mockEvents.filter(e => e.date === selectedDate).length}
-              </Text>
-              <Text style={styles.statsLabel}>Today's Events</Text>
-            </View>
-            <View style={styles.statsDivider} />
-            <View style={styles.statsItem}>
-              <Text style={styles.statsNumber}>
-                {mockEvents.filter(e => new Date(e.date) > new Date()).length}
-              </Text>
-              <Text style={styles.statsLabel}>Upcoming</Text>
-            </View>
-          </View>
-
-          {/* Events Section */}
-          <View style={styles.eventsSection}>
-            <View style={styles.sectionHeader}>
-              <View style={styles.sectionTitleContainer}>
-                <Ionicons name="calendar" size={20} color="#FF8787" />
-                <Text style={styles.sectionTitle}>
-                  {formatDate(selectedDate)}
-                </Text>
+          {/* Conditional View Rendering */}
+          {viewMode === 'month' && (
+            <>
+              <View style={styles.calendarCard}>
+                <Calendar
+                  onDayPress={(day) => {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    setSelectedDate(day.dateString);
+                  }}
+                  onMonthChange={(month) => {
+                    setCurrentMonth(`${month.year}-${String(month.month).padStart(2, '0')}`);
+                  }}
+                  markedDates={getMarkedDates()}
+                  theme={{
+                    calendarBackground: 'transparent',
+                    todayTextColor: '#FF8787',
+                    arrowColor: '#FF8787',
+                    monthTextColor: '#3A3A3A',
+                    textMonthFontWeight: '600',
+                    textDayFontWeight: '500',
+                    textDayHeaderFontWeight: '500',
+                    textDayHeaderFontSize: 12,
+                    textDayFontSize: 14,
+                    'stylesheet.calendar.header': {
+                      dayTextAtIndex0: {
+                        color: '#FF8787',
+                      },
+                      dayTextAtIndex6: {
+                        color: '#FF8787',
+                      },
+                    },
+                  }}
+                  style={styles.calendar}
+                />
               </View>
-              {hasEvents && (
-                <Text style={styles.eventCount}>{selectedEvents.length} events</Text>
-              )}
-            </View>
+              {renderMonthView()}
+            </>
+          )}
 
-            {hasEvents ? (
-              <View style={styles.eventsList}>
-                {selectedEvents.map((event, index) => (
-                  <EventCard
-                    key={event.id}
-                    title={event.title}
-                    location={event.location}
-                    date={event.date}
-                    startTime={event.startTime}
-                    endTime={event.endTime}
-                    category={event.category}
-                    onPress={() => {
-                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                      router.push(`/event/${event.id}`);
-                    }}
-                    style={styles.eventCard}
-                  />
-                ))}
-              </View>
-            ) : (
-              <View style={styles.emptyState}>
-                <View style={styles.emptyIconContainer}>
-                  <Ionicons name="calendar-outline" size={48} color="#FF8787" />
+          {viewMode === 'week' && (
+            <>
+              {renderWeekView()}
+              <View style={styles.eventsSection}>
+                <View style={styles.sectionHeader}>
+                  <View style={styles.sectionTitleContainer}>
+                    <Ionicons name="calendar" size={20} color="#FF8787" />
+                    <Text style={styles.sectionTitle}>
+                      Events on {formatDate(selectedDate)}
+                    </Text>
+                  </View>
                 </View>
-                <Text style={styles.emptyTitle}>No events planned</Text>
-                <Text style={styles.emptyText}>
-                  Tap the + button to add an event and make this day productive!
-                </Text>
-                <Pressable
-                  style={styles.emptyButton}
-                  onPress={handleAddEvent}
-                >
-                  <Text style={styles.emptyButtonText}>Add Event</Text>
-                </Pressable>
+                {hasEvents ? (
+                  <View style={styles.eventsList}>
+                    {selectedEvents.map((event) => (
+                      <EventCard
+                        key={event.id}
+                        title={event.title}
+                        location={event.location}
+                        date={event.date}
+                        startTime={event.startTime}
+                        endTime={event.endTime}
+                        category={event.category}
+                        onPress={() => {
+                          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                          router.push(`/event/${event.id}`);
+                        }}
+                        style={styles.eventCard}
+                      />
+                    ))}
+                  </View>
+                ) : (
+                  <View style={styles.emptyState}>
+                    <View style={styles.emptyIconContainer}>
+                      <Ionicons name="calendar-outline" size={48} color="#FF8787" />
+                    </View>
+                    <Text style={styles.emptyTitle}>No events planned</Text>
+                    <Text style={styles.emptyText}>
+                      Tap the + button to add an event for this day!
+                    </Text>
+                  </View>
+                )}
               </View>
-            )}
-          </View>
+            </>
+          )}
+
+          {viewMode === 'day' && (
+            renderDayView()
+          )}
+
+          {/* Stats Summary - Only show in month view */}
+          {viewMode === 'month' && (
+            <View style={styles.statsCard}>
+              <View style={styles.statsItem}>
+                <Text style={styles.statsNumber}>{mockEvents.length}</Text>
+                <Text style={styles.statsLabel}>Total Events</Text>
+              </View>
+              <View style={styles.statsDivider} />
+              <View style={styles.statsItem}>
+                <Text style={styles.statsNumber}>
+                  {mockEvents.filter(e => e.date === selectedDate).length}
+                </Text>
+                <Text style={styles.statsLabel}>Today's Events</Text>
+              </View>
+              <View style={styles.statsDivider} />
+              <View style={styles.statsItem}>
+                <Text style={styles.statsNumber}>
+                  {mockEvents.filter(e => new Date(e.date) > new Date()).length}
+                </Text>
+                <Text style={styles.statsLabel}>Upcoming</Text>
+              </View>
+            </View>
+          )}
 
           {/* Panda Tip */}
           <View style={styles.tipCard}>
@@ -396,9 +543,9 @@ export default function CalendarScreen() {
             <View style={styles.tipContent}>
               <Text style={styles.tipTitle}>🐼 Panda Tip</Text>
               <Text style={styles.tipText}>
-                {hasEvents
-                  ? `You have ${selectedEvents.length} event${selectedEvents.length > 1 ? 's' : ''} today. Stay focused and take breaks!`
-                  : "No events today? Perfect time to plan ahead or enjoy some self-care!"}
+                {viewMode === 'month' && "Switch to Week or Day view for a closer look at your schedule!"}
+                {viewMode === 'week' && "Tap on any day to see its events, or switch to Day view for more details."}
+                {viewMode === 'day' && "Use the + button to add events. Switch to Month view to see your full calendar!"}
               </Text>
             </View>
           </View>
@@ -526,6 +673,145 @@ const styles = StyleSheet.create({
   },
   calendar: {
     borderRadius: 16,
+  },
+  monthViewCard: {
+    backgroundColor: '#FFFFFF',
+    marginHorizontal: 20,
+    marginBottom: 16,
+    borderRadius: 20,
+    padding: 16,
+    shadowColor: '#9BD8EC',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  monthViewTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#3A3A3A',
+    marginBottom: 16,
+  },
+  monthEventItem: {
+    flexDirection: 'row',
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F0F0F0',
+  },
+  monthEventDate: {
+    width: 70,
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#FF8787',
+  },
+  monthEventList: {
+    flex: 1,
+  },
+  monthEventTitle: {
+    fontSize: 14,
+    color: '#3A3A3A',
+    marginBottom: 2,
+  },
+  monthEventMore: {
+    fontSize: 12,
+    color: '#9B9B9B',
+    marginTop: 2,
+  },
+  monthEmptyText: {
+    textAlign: 'center',
+    color: '#9B9B9B',
+    paddingVertical: 20,
+  },
+  weekViewCard: {
+    backgroundColor: '#FFFFFF',
+    marginHorizontal: 20,
+    marginBottom: 16,
+    borderRadius: 20,
+    padding: 16,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    shadowColor: '#9BD8EC',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  weekDayItem: {
+    alignItems: 'center',
+    padding: 8,
+    borderRadius: 12,
+    minWidth: 40,
+  },
+  weekDaySelected: {
+    backgroundColor: '#FFF5F0',
+  },
+  weekDayName: {
+    fontSize: 12,
+    color: '#9B9B9B',
+    marginBottom: 4,
+  },
+  weekDayNameSelected: {
+    color: '#FF8787',
+    fontWeight: '600',
+  },
+  weekDayDate: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: '#3A3A3A',
+  },
+  weekDayDateSelected: {
+    color: '#FF8787',
+  },
+  weekEventIndicator: {
+    position: 'absolute',
+    top: -4,
+    right: -4,
+    backgroundColor: '#FF8787',
+    borderRadius: 10,
+    minWidth: 18,
+    height: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 4,
+  },
+  weekEventCount: {
+    fontSize: 10,
+    color: '#FFFFFF',
+    fontWeight: '600',
+  },
+  dayViewCard: {
+    backgroundColor: '#FFFFFF',
+    marginHorizontal: 20,
+    marginBottom: 16,
+    borderRadius: 20,
+    padding: 16,
+    shadowColor: '#9BD8EC',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  dayViewTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#3A3A3A',
+    marginBottom: 16,
+  },
+  emptyDayState: {
+    alignItems: 'center',
+    paddingVertical: 40,
+  },
+  emptyDayTitle: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: '#3A3A3A',
+    marginTop: 12,
+    marginBottom: 4,
+  },
+  emptyDayText: {
+    fontSize: 14,
+    color: '#9B9B9B',
+    textAlign: 'center',
   },
   statsCard: {
     flexDirection: 'row',
