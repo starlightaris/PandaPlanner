@@ -1,5 +1,5 @@
-import { View, Text, StyleSheet, Pressable } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 import { Colors } from "../theme/colors";
 
 type Props = {
@@ -8,6 +8,7 @@ type Props = {
   date: string;
   startTime: string;
   endTime: string;
+  hasConflict?: boolean; // Added to match index.tsx logic
   onPress?: () => void;
 };
 
@@ -17,30 +18,42 @@ export default function EventCard({
   date,
   startTime,
   endTime,
+  hasConflict,
   onPress,
 }: Props) {
   return (
-    <Pressable style={styles.card} onPress={onPress}>
+    <Pressable 
+      // Apply conditional border color if there is a conflict
+      style={[
+        styles.card, 
+        hasConflict && { borderColor: '#FF8787', borderWidth: 1.5, shadowColor: '#FF8787', shadowOpacity: 0.1 }
+      ]} 
+      onPress={onPress}
+    >
       {/* Time Column */}
-
       <View style={styles.timeContainer}>
-        <Text style={styles.time}>
+        <Text style={[styles.time, hasConflict && { color: '#FF8787' }]}>
           {startTime}
         </Text>
 
-        <View style={styles.line} />
+        <View style={[styles.line, hasConflict && { backgroundColor: '#FF8787' }]} />
 
-        <Text style={styles.time}>
+        <Text style={[styles.time, hasConflict && { color: '#FF8787' }]}>
           {endTime}
         </Text>
       </View>
 
       {/* Event Info */}
-
       <View style={styles.info}>
-        <Text style={styles.title}>
-          {title}
-        </Text>
+        <View style={styles.headerRow}>
+          <Text style={styles.title} numberOfLines={1}>
+            {title}
+          </Text>
+          {/* Show warning icon if there is a conflict */}
+          {hasConflict && (
+            <Ionicons name="warning" size={18} color="#FF8787" style={{ marginLeft: 4 }} />
+          )}
+        </View>
 
         {location && (
           <View style={styles.row}>
@@ -49,8 +62,7 @@ export default function EventCard({
               size={14}
               color={Colors.textSecondary}
             />
-
-            <Text style={styles.location}>
+            <Text style={styles.location} numberOfLines={1}>
               {location}
             </Text>
           </View>
@@ -65,61 +77,63 @@ export default function EventCard({
 }
 
 const styles = StyleSheet.create({
-
   card: {
     flexDirection: "row",
-
     backgroundColor: Colors.card,
-
     padding: 16,
-
     borderRadius: 16,
-
     marginBottom: 12,
-
     elevation: 2,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
   },
-
   timeContainer: {
     alignItems: "center",
     marginRight: 16,
+    minWidth: 50,
   },
-
   time: {
-    fontWeight: "600",
+    fontWeight: "700",
+    fontSize: 13,
+    color: '#3A3A3A',
   },
-
   line: {
     width: 2,
     height: 20,
     backgroundColor: Colors.primary,
     marginVertical: 4,
+    borderRadius: 1,
   },
-
   info: {
     flex: 1,
   },
-
+  headerRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+  },
   title: {
     fontSize: 16,
     fontWeight: "600",
     marginBottom: 4,
+    color: '#3A3A3A',
+    flex: 1,
   },
-
   row: {
     flexDirection: "row",
     alignItems: "center",
+    marginBottom: 2,
   },
-
   location: {
     marginLeft: 4,
     color: Colors.textSecondary,
+    fontSize: 13,
   },
-
   date: {
     marginTop: 4,
     color: Colors.textSecondary,
     fontSize: 12,
   },
-
 });
