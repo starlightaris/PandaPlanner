@@ -1,11 +1,10 @@
 import { Ionicons } from "@expo/vector-icons";
 import { decode } from 'base-64';
 import { Tabs, useRouter } from "expo-router";
-import { Pressable, StyleSheet, View, Animated, Dimensions, Text, Modal } from "react-native";
+import { Pressable, StyleSheet, View, Animated, Dimensions } from "react-native";
 import { useState, useRef, useEffect } from "react";
 import { LinearGradient } from 'expo-linear-gradient';
 import { Colors } from "../theme/colors";
-import ChatImport from "../chat-import";
 import * as Haptics from 'expo-haptics';
 
 const { width } = Dimensions.get('window');
@@ -16,11 +15,8 @@ if (typeof atob === 'undefined') {
 
 export default function TabsLayout() {
   const router = useRouter();
-  const [showChatImport, setShowChatImport] = useState(false);
-  const [showTooltip, setShowTooltip] = useState(false);
   const fabScale = useRef(new Animated.Value(1)).current;
   const fabRotate = useRef(new Animated.Value(0)).current;
-  const tooltipOpacity = useRef(new Animated.Value(0)).current;
 
   // Pulse animation for the FAB
   useEffect(() => {
@@ -41,42 +37,11 @@ export default function TabsLayout() {
 
     pulseAnimation.start();
 
-    // Show tooltip after 2 seconds
-    const timer = setTimeout(() => {
-      setShowTooltip(true);
-      Animated.timing(tooltipOpacity, {
-        toValue: 1,
-        duration: 500,
-        useNativeDriver: true,
-      }).start();
-
-      // Hide tooltip after 5 seconds
-      setTimeout(() => {
-        Animated.timing(tooltipOpacity, {
-          toValue: 0,
-          duration: 500,
-          useNativeDriver: true,
-        }).start(() => setShowTooltip(false));
-      }, 5000);
-    }, 2000);
-
-    return () => {
-      pulseAnimation.stop();
-      clearTimeout(timer);
-    };
+    return () => pulseAnimation.stop();
   }, []);
 
   const handleFabPress = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-
-    // Hide tooltip if visible
-    if (showTooltip) {
-      Animated.timing(tooltipOpacity, {
-        toValue: 0,
-        duration: 200,
-        useNativeDriver: true,
-      }).start(() => setShowTooltip(false));
-    }
 
     // Rotate animation
     Animated.sequence([
@@ -92,13 +57,7 @@ export default function TabsLayout() {
       }),
     ]).start();
 
-    setShowChatImport(true);
-  };
-
-  const handleImportComplete = (events: any[]) => {
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    console.log('Imported events:', events);
-    // You can add logic here to refresh your calendar/todo data
+    router.push("/chat-import");
   };
 
   const rotateInterpolate = fabRotate.interpolate({
@@ -169,21 +128,6 @@ export default function TabsLayout() {
 
       {/* Floating Action Button */}
       <View style={styles.fabContainer}>
-        {/* Tooltip */}
-        {showTooltip && (
-          <Animated.View style={[styles.tooltipContainer, { opacity: tooltipOpacity }]}>
-            <LinearGradient
-              colors={['#FF8787', '#FF9F9F']}
-              style={styles.tooltip}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
-            >
-              <Text style={styles.tooltipText}>Chat with Panda! ✨</Text>
-              <View style={styles.tooltipArrow} />
-            </LinearGradient>
-          </Animated.View>
-        )}
-
         <Animated.View
           style={[
             styles.fabWrapper,
@@ -209,17 +153,25 @@ export default function TabsLayout() {
             </Pressable>
           </LinearGradient>
         </Animated.View>
-      </View>
 
-      {/* Chat Import Modal */}
-      <ChatImport
-        visible={showChatImport}
-        onClose={() => setShowChatImport(false)}
-        onImportComplete={handleImportComplete}
-      />
+        {/* Label for the FAB */}
+        <View style={styles.fabLabelContainer}>
+          <LinearGradient
+            colors={['rgba(0,0,0,0.7)', 'rgba(0,0,0,0.5)']}
+            style={styles.fabLabel}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+          >
+            <Text style={styles.fabLabelText}>Chat with Panda</Text>
+          </LinearGradient>
+        </View>
+      </View>
     </>
   );
 }
+
+// Add Text import
+import { Text } from "react-native";
 
 const styles = StyleSheet.create({
   tabBar: {
@@ -281,39 +233,5 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 12,
     fontWeight: '500',
-  },
-  tooltipContainer: {
-    position: 'absolute',
-    right: 70,
-    bottom: 10,
-    marginBottom: 8,
-  },
-  tooltip: {
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 20,
-    position: 'relative',
-  },
-  tooltipText: {
-    color: '#FFFFFF',
-    fontSize: 13,
-    fontWeight: '500',
-  },
-  tooltipArrow: {
-    position: 'absolute',
-    right: -8,
-    top: '35%',
-    width: 0,
-    height: 0,
-    backgroundColor: 'transparent',
-    borderStyle: 'solid',
-    borderLeftWidth: 8,
-    borderRightWidth: 0,
-    borderBottomWidth: 8,
-    borderTopWidth: 8,
-    borderLeftColor: '#FF8787',
-    borderRightColor: 'transparent',
-    borderBottomColor: 'transparent',
-    borderTopColor: 'transparent',
   },
 });

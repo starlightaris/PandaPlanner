@@ -8,25 +8,15 @@ import {
   FlatList,
   KeyboardAvoidingView,
   Platform,
-  Modal,
-  Animated,
-  Dimensions,
   ActivityIndicator,
-  Keyboard,
-  TouchableWithoutFeedback,
+  SafeAreaView,
+  StatusBar,
 } from "react-native";
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from 'expo-haptics';
+import { useRouter } from "expo-router";
 import { Colors } from "./theme/colors";
-
-const { width, height } = Dimensions.get('window');
-
-interface ChatImportProps {
-  visible: boolean;
-  onClose: () => void;
-  onImportComplete?: (events: any[]) => void;
-}
 
 interface Message {
   id: string;
@@ -35,7 +25,8 @@ interface Message {
   timestamp: Date;
 }
 
-export default function ChatImport({ visible, onClose, onImportComplete }: ChatImportProps) {
+export default function ChatImport() {
+  const router = useRouter();
   const [message, setMessage] = useState("");
   const [messages, setMessages] = useState<Message[]>([
     {
@@ -49,43 +40,6 @@ export default function ChatImport({ visible, onClose, onImportComplete }: ChatI
   const [extractedEvents, setExtractedEvents] = useState<any[]>([]);
   const flatListRef = useRef<FlatList>(null);
   const inputRef = useRef<TextInput>(null);
-  const fadeAnim = useRef(new Animated.Value(0)).current;
-  const slideAnim = useRef(new Animated.Value(height)).current;
-
-  useEffect(() => {
-    if (visible) {
-      Animated.parallel([
-        Animated.timing(fadeAnim, {
-          toValue: 1,
-          duration: 250,
-          useNativeDriver: true,
-        }),
-        Animated.spring(slideAnim, {
-          toValue: 0,
-          tension: 65,
-          friction: 11,
-          useNativeDriver: true,
-        }),
-      ]).start();
-      // Auto-focus input when modal opens
-      setTimeout(() => {
-        inputRef.current?.focus();
-      }, 300);
-    } else {
-      Animated.parallel([
-        Animated.timing(fadeAnim, {
-          toValue: 0,
-          duration: 200,
-          useNativeDriver: true,
-        }),
-        Animated.timing(slideAnim, {
-          toValue: height,
-          duration: 200,
-          useNativeDriver: true,
-        }),
-      ]).start();
-    }
-  }, [visible]);
 
   useEffect(() => {
     if (messages.length > 0) {
@@ -181,11 +135,14 @@ export default function ChatImport({ visible, onClose, onImportComplete }: ChatI
     setMessages(prev => [...prev, confirmMsg]);
 
     setTimeout(() => {
-      onImportComplete?.(extractedEvents);
+      // Here you would actually save to your calendar/todo system
+      console.log('Imported events:', extractedEvents);
+      setExtractedEvents([]);
       setIsProcessing(false);
 
+      // Optional: Navigate back after a delay
       setTimeout(() => {
-        onClose();
+        router.back();
       }, 2000);
     }, 1500);
   };
@@ -229,208 +186,171 @@ export default function ChatImport({ visible, onClose, onImportComplete }: ChatI
   );
 
   return (
-    <Modal
-      visible={visible}
-      transparent={true}
-      animationType="none"
-      onRequestClose={onClose}
-    >
-      <Animated.View style={[styles.overlay, { opacity: fadeAnim }]}>
-        <Pressable style={styles.backdrop} onPress={onClose} />
-
-        <Animated.View
-          style={[
-            styles.modalContainer,
-            {
-              transform: [{ translateY: slideAnim }]
-            }
-          ]}
-        >
-          <LinearGradient
-            colors={['#FFFFFF', '#FFFBF5']}
-            style={styles.modalContent}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 0, y: 1 }}
+    <SafeAreaView style={styles.safeArea}>
+      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
+      <LinearGradient
+        colors={['#FFFFFF', '#FFFBF5']}
+        style={styles.container}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 0, y: 1 }}
+      >
+        {/* Header with Back Button */}
+        <View style={styles.header}>
+          <Pressable
+            style={styles.backButton}
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              router.back();
+            }}
           >
-            {/* Header */}
-            <View style={styles.header}>
-              <View style={styles.headerLeft}>
-                <View style={styles.pandaIconContainer}>
-                  <Text style={styles.pandaIcon}>🐼</Text>
-                </View>
-                <View>
-                  <Text style={styles.title}>Smart Import</Text>
-                  <Text style={styles.subtitle}>Chat with Panda</Text>
-                </View>
-              </View>
-              <View style={styles.headerActions}>
-                <Pressable
-                  style={styles.clearButton}
-                  onPress={clearChat}
-                >
-                  <Ionicons name="refresh-outline" size={20} color="#FF8787" />
-                </Pressable>
-                <Pressable
-                  style={styles.closeButton}
-                  onPress={onClose}
-                >
-                  <Ionicons name="close" size={24} color="#9B9B9B" />
-                </Pressable>
-              </View>
+            <Ionicons name="arrow-back" size={24} color="#5C5C5C" />
+          </Pressable>
+          <View style={styles.headerCenter}>
+            <View style={styles.pandaIconContainer}>
+              <Text style={styles.pandaIcon}>🐼</Text>
             </View>
+            <View>
+              <Text style={styles.title}>Smart Import</Text>
+              <Text style={styles.subtitle}>Chat with Panda</Text>
+            </View>
+          </View>
+          <Pressable
+            style={styles.clearButton}
+            onPress={clearChat}
+          >
+            <Ionicons name="refresh-outline" size={20} color="#FF8787" />
+          </Pressable>
+        </View>
 
-            {/* Chat Messages - Now with proper flex */}
-            <FlatList
-              ref={flatListRef}
-              data={messages}
-              keyExtractor={(item) => item.id}
-              style={styles.chatList}
-              contentContainerStyle={styles.chatContent}
-              showsVerticalScrollIndicator={false}
-              renderItem={renderMessage}
-              keyboardShouldPersistTaps="handled"
-            />
+        {/* Chat Messages */}
+        <FlatList
+          ref={flatListRef}
+          data={messages}
+          keyExtractor={(item) => item.id}
+          style={styles.chatList}
+          contentContainerStyle={styles.chatContent}
+          showsVerticalScrollIndicator={false}
+          renderItem={renderMessage}
+          keyboardShouldPersistTaps="handled"
+        />
 
-            {/* Import Confirmation Bar */}
-            {extractedEvents.length > 0 && (
-              <View style={styles.confirmBar}>
-                <View style={styles.confirmInfo}>
-                  <Ionicons name="calendar-outline" size={18} color="#FF8787" />
-                  <Text style={styles.confirmText}>
-                    {extractedEvents.length} event{extractedEvents.length > 1 ? 's' : ''} ready
-                  </Text>
-                </View>
-                <Pressable
-                  style={styles.confirmButton}
-                  onPress={confirmImport}
-                  disabled={isProcessing}
-                >
-                  <Text style={styles.confirmButtonText}>Add to Calendar</Text>
-                  <Ionicons name="arrow-forward" size={16} color="white" />
-                </Pressable>
-              </View>
-            )}
-
-            {/* Input Area - Fixed positioning */}
-            <KeyboardAvoidingView
-              behavior={Platform.OS === "ios" ? "padding" : "height"}
-              keyboardVerticalOffset={Platform.OS === "ios" ? 20 : 0}
-              style={styles.keyboardAvoidingView}
+        {/* Import Confirmation Bar */}
+        {extractedEvents.length > 0 && (
+          <View style={styles.confirmBar}>
+            <View style={styles.confirmInfo}>
+              <Ionicons name="calendar-outline" size={18} color="#FF8787" />
+              <Text style={styles.confirmText}>
+                {extractedEvents.length} event{extractedEvents.length > 1 ? 's' : ''} ready
+              </Text>
+            </View>
+            <Pressable
+              style={styles.confirmButton}
+              onPress={confirmImport}
+              disabled={isProcessing}
             >
-              <View style={styles.inputWrapper}>
-                <View style={styles.inputContainer}>
-                  <TextInput
-                    ref={inputRef}
-                    style={styles.input}
-                    placeholder="Type your schedule naturally..."
-                    placeholderTextColor="#C7C7C7"
-                    value={message}
-                    onChangeText={setMessage}
-                    onSubmitEditing={sendMessage}
-                    editable={!isProcessing}
-                    multiline
-                    maxHeight={100}
-                  />
-                  <Pressable
-                    style={[styles.sendButton, (!message.trim() || isProcessing) && styles.sendButtonDisabled]}
-                    onPress={sendMessage}
-                    disabled={!message.trim() || isProcessing}
-                  >
-                    {isProcessing ? (
-                      <ActivityIndicator size="small" color="#FFFFFF" />
-                    ) : (
-                      <Ionicons name="send" size={20} color="#FFFFFF" />
-                    )}
-                  </Pressable>
-                </View>
-              </View>
-            </KeyboardAvoidingView>
-          </LinearGradient>
-        </Animated.View>
-      </Animated.View>
-    </Modal>
+              <Text style={styles.confirmButtonText}>Add to Calendar</Text>
+              <Ionicons name="arrow-forward" size={16} color="white" />
+            </Pressable>
+          </View>
+        )}
+
+        {/* Input Area */}
+        <KeyboardAvoidingView
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+          keyboardVerticalOffset={Platform.OS === "ios" ? 90 : 0}
+          style={styles.keyboardAvoidingView}
+        >
+          <View style={styles.inputWrapper}>
+            <View style={styles.inputContainer}>
+              <TextInput
+                ref={inputRef}
+                style={styles.input}
+                placeholder="Type your schedule naturally..."
+                placeholderTextColor="#C7C7C7"
+                value={message}
+                onChangeText={setMessage}
+                onSubmitEditing={sendMessage}
+                editable={!isProcessing}
+                multiline
+                maxHeight={100}
+              />
+              <Pressable
+                style={[styles.sendButton, (!message.trim() || isProcessing) && styles.sendButtonDisabled]}
+                onPress={sendMessage}
+                disabled={!message.trim() || isProcessing}
+              >
+                {isProcessing ? (
+                  <ActivityIndicator size="small" color="#FFFFFF" />
+                ) : (
+                  <Ionicons name="send" size={20} color="#FFFFFF" />
+                )}
+              </Pressable>
+            </View>
+          </View>
+        </KeyboardAvoidingView>
+      </LinearGradient>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  overlay: {
+  safeArea: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'flex-end',
+    backgroundColor: '#FFFFFF',
   },
-  backdrop: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-  },
-  modalContainer: {
-    width: '100%',
-    height: '80%', // Increased from 85% to give more space
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
-    overflow: 'hidden',
-  },
-  modalContent: {
+  container: {
     flex: 1,
-    paddingHorizontal: 20,
-    paddingTop: 20,
-    paddingBottom: Platform.OS === 'ios' ? 34 : 20, // Safe area for iOS
-    position: 'relative',
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 16,
-    paddingBottom: 12,
+    paddingHorizontal: 20,
+    paddingTop: 12,
+    paddingBottom: 16,
     borderBottomWidth: 1,
     borderBottomColor: '#F0F0F0',
+    backgroundColor: 'transparent',
   },
-  headerLeft: {
+  backButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.8)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  headerCenter: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
   },
   pandaIconContainer: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     backgroundColor: '#FFF5F0',
     justifyContent: 'center',
     alignItems: 'center',
   },
   pandaIcon: {
-    fontSize: 28,
+    fontSize: 24,
   },
   title: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: '700',
     color: '#3A3A3A',
   },
   subtitle: {
-    fontSize: 12,
+    fontSize: 11,
     color: '#9B9B9B',
     marginTop: 2,
   },
-  headerActions: {
-    flexDirection: 'row',
-    gap: 12,
-  },
   clearButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     backgroundColor: '#FFF5F0',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  closeButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: '#F5F5F5',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -438,8 +358,9 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   chatContent: {
+    paddingHorizontal: 20,
     paddingBottom: 16,
-    paddingTop: 8,
+    paddingTop: 16,
   },
   messageContainer: {
     flexDirection: 'row',
@@ -465,7 +386,7 @@ const styles = StyleSheet.create({
     fontSize: 18,
   },
   messageBubble: {
-    maxWidth: '75%',
+    maxWidth: '80%',
     padding: 12,
     borderRadius: 20,
   },
@@ -503,6 +424,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     backgroundColor: '#FFF5F0',
+    marginHorizontal: 20,
     padding: 12,
     borderRadius: 16,
     marginBottom: 12,
@@ -534,18 +456,19 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
   },
   keyboardAvoidingView: {
-    marginTop: 8,
-  },
-  inputWrapper: {
-    paddingTop: 8,
     borderTopWidth: 1,
     borderTopColor: '#F0F0F0',
+    backgroundColor: 'transparent',
+  },
+  inputWrapper: {
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    backgroundColor: 'transparent',
   },
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'flex-end',
     gap: 12,
-    paddingVertical: 12,
   },
   input: {
     flex: 1,
