@@ -49,6 +49,10 @@ export default function TodoScreen() {
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(30)).current;
 
+  // Animation for the + button
+  const addButtonScale = useRef(new Animated.Value(1)).current;
+  const addButtonRotate = useRef(new Animated.Value(0)).current;
+
   useEffect(() => {
     Animated.parallel([
       Animated.timing(fadeAnim, {
@@ -147,6 +151,36 @@ export default function TodoScreen() {
     setEditingId(null);
   };
 
+  const handleAddPress = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+
+    // Animate the + button
+    Animated.sequence([
+      Animated.timing(addButtonScale, {
+        toValue: 0.8,
+        duration: 100,
+        useNativeDriver: true,
+      }),
+      Animated.timing(addButtonRotate, {
+        toValue: 1,
+        duration: 150,
+        useNativeDriver: true,
+      }),
+      Animated.timing(addButtonScale, {
+        toValue: 1,
+        duration: 100,
+        useNativeDriver: true,
+      }),
+      Animated.timing(addButtonRotate, {
+        toValue: 0,
+        duration: 150,
+        useNativeDriver: true,
+      }),
+    ]).start();
+
+    setAdding(true);
+  };
+
   const getPriorityIcon = (priority?: string) => {
     switch(priority) {
       case 'high': return "alert-circle";
@@ -188,6 +222,11 @@ export default function TodoScreen() {
     active: todos.filter(t => !t.done).length,
     completionRate: todos.length > 0 ? Math.round((todos.filter(t => t.done).length / todos.length) * 100) : 0
   };
+
+  const rotateInterpolate = addButtonRotate.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['0deg', '45deg']
+  });
 
   const renderRightActions = (todo: Todo) => {
     return (
@@ -247,22 +286,23 @@ export default function TodoScreen() {
               <Text style={styles.pandaEmoji}>🐼</Text>
             </View>
           </View>
-          <Pressable
-            onPress={() => {
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-              setAdding(true);
-            }}
-            style={styles.addButton}
+          <Animated.View
+            style={[
+              styles.addButtonWrapper,
+              {
+                transform: [{ scale: addButtonScale }]
+              }
+            ]}
           >
-            <LinearGradient
-              colors={['#FF8787', '#FF9F9F']}
-              style={styles.addButtonGradient}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
+            <Pressable
+              onPress={handleAddPress}
+              style={styles.addButton}
             >
-              <Ionicons name="add" size={24} color="#FFFFFF" />
-            </LinearGradient>
-          </Pressable>
+              <Animated.View style={{ transform: [{ rotate: rotateInterpolate }] }}>
+                <Ionicons name="add" size={28} color="#FF8787" />
+              </Animated.View>
+            </Pressable>
+          </Animated.View>
         </View>
 
         {/* Filter Tabs */}
@@ -571,20 +611,8 @@ const styles = StyleSheet.create({
     padding: 8,
   },
   addButton: {
-    borderRadius: 30,
-    overflow: 'hidden',
-    shadowColor: '#FF8787',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  addButtonGradient: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    justifyContent: 'center',
-    alignItems: 'center',
+    padding: 8,
+    marginRight: -4,
   },
   filterContainer: {
     flexDirection: 'row',
