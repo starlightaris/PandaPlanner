@@ -1,5 +1,5 @@
-import { View, Text, StyleSheet, Pressable, ScrollView, RefreshControl, Alert } from "react-native";
-import { useState, useCallback, useEffect } from "react";
+import { View, Text, StyleSheet, Pressable, ScrollView, RefreshControl, Alert, Animated } from "react-native";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
@@ -12,13 +12,16 @@ import { useAuth } from '../context/AuthContext';
 
 export default function Home() {
   const router = useRouter();
-  const { accessToken, user } = useAuth(); // 1. Grab global state
+  const { accessToken, user } = useAuth();
 
   const [refreshing, setRefreshing] = useState(false);
   const [events, setEvents] = useState([]);
   const [selectedFilter, setSelectedFilter] = useState('all');
 
-  // 2. Fetch Google Calendar Events
+  // Animation for the + button
+  const addButtonScale = useRef(new Animated.Value(1)).current;
+  const addButtonRotate = useRef(new Animated.Value(0)).current;
+
   const fetchGoogleEvents = async () => {
     if (!accessToken) return;
 
@@ -31,12 +34,11 @@ export default function Home() {
       );
       const data = await response.json();
 
-      // Transform Google format to your EventCard format
       const formattedEvents = data.items?.map((item: any) => ({
         id: item.id,
         title: item.summary,
         location: item.location || "No Location",
-        date: item.start?.dateTime?.split('T') || item.start?.date,
+        date: item.start?.dateTime?.split('T')[0] || item.start?.date,
         startTime: item.start?.dateTime ? new Date(item.start.dateTime).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : "All Day",
         endTime: item.end?.dateTime ? new Date(item.end.dateTime).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : "",
         category: "Google Sync"
@@ -58,10 +60,44 @@ export default function Home() {
     fetchGoogleEvents().finally(() => setRefreshing(false));
   }, [accessToken]);
 
-  // 3. Filter Logic
+  const handleAddPress = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+
+    // Animate the + button
+    Animated.sequence([
+      Animated.timing(addButtonScale, {
+        toValue: 0.8,
+        duration: 100,
+        useNativeDriver: true,
+      }),
+      Animated.timing(addButtonRotate, {
+        toValue: 1,
+        duration: 150,
+        useNativeDriver: true,
+      }),
+      Animated.timing(addButtonScale, {
+        toValue: 1,
+        duration: 100,
+        useNativeDriver: true,
+      }),
+      Animated.timing(addButtonRotate, {
+        toValue: 0,
+        duration: 150,
+        useNativeDriver: true,
+      }),
+    ]).start();
+
+    router.push("/add-event");
+  };
+
+  const rotateInterpolate = addButtonRotate.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['0deg', '45deg']
+  });
+
   const filteredEvents = events.filter(event => {
     if (selectedFilter === 'all') return true;
-    const today = new Date().toISOString().split('T');
+    const today = new Date().toISOString().split('T')[0];
     if (selectedFilter === 'today') return event.date === today;
     if (selectedFilter === 'upcoming') return event.date > today;
     return true;
@@ -92,30 +128,47 @@ export default function Home() {
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#FF8787" />
         }
       >
-        {/* Header Section */}
+        {/* Header Section - Now matches Calendar/Todo */}
         <View style={styles.headerSection}>
-          <View style={styles.headerTop}>
-            <View>
-              <Text style={styles.greeting}>{getGreeting()},</Text>
-              {/* Greets user by name from Google Auth */}
-              <Text style={styles.userName}>{user?.displayName?.split(' ') || "Panda"} Friend 🐼</Text>
+          <View style={styles.header}>
+            <View style={styles.headerLeft}>
+              <View style={styles.pandaIconContainer}>
+                <Text style={styles.pandaIcon}>🐼</Text>
+              </View>
+              <View>
+                <Text style={styles.headerTitle}>Panda Planner</Text>
+                <Text style={styles.subtitle}>{getDateString()}</Text>
+              </View>
             </View>
-            <Pressable style={styles.addButton} onPress={() => {
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-                router.push("/add-event");
-            }}>
-              <LinearGradient colors={['#FF8787', '#FF9F9F']} style={styles.addButtonGradient}>
-                <Ionicons name="add" size={24} color="#FFFFFF" />
-              </LinearGradient>
-            </Pressable>
+            <Animated.View
+              style={[
+                styles.addButtonWrapper,
+                {
+                  transform: [{ scale: addButtonScale }]
+                }
+              ]}
+            >
+              <Pressable
+                onPress={handleAddPress}
+                style={styles.addButton}
+              >
+                <Animated.View style={{ transform: [{ rotate: rotateInterpolate }] }}>
+                  <Ionicons name="add" size={28} color="#FF8787" />
+                </Animated.View>
+              </Pressable>
+            </Animated.View>
           </View>
-          <Text style={styles.dateText}>{getDateString()}</Text>
+
+          {/* Welcome Message */}
+          <Text style={styles.welcomeText}>
+            {getGreeting()}, {user?.displayName?.split(' ')[0] || "Panda"}! 🐼
+          </Text>
 
           {/* Stats Section */}
           <View style={styles.statsContainer}>
-            <StatCard icon="calendar" color="#FF8787" value={events.length} label="Total" />
-            <StatCard icon="time" color="#9BD8EC" value={events.filter(e => e.date === new Date().toISOString().split('T')).length} label="Today" />
-            <StatCard icon="checkmark-circle" color="#FFF7B2" value="Live" label="Sync" />
+            <StatCard icon="calendar" color="#FF8787" value={events.length} label="Total Events" />
+            <StatCard icon="time" color="#9BD8EC" value={events.filter(e => e.date === new Date().toISOString().split('T')[0]).length} label="Today" />
+            <StatCard icon="sync" color="#FFF7B2" value="Live" label="Google Sync" />
           </View>
         </View>
 
@@ -131,7 +184,7 @@ export default function Home() {
               }}
             >
               <Text style={[styles.filterText, selectedFilter === id && styles.filterTextActive]}>
-                {id.charAt(0).toUpperCase() + id.slice(1)}
+                {id === 'all' ? 'All Events' : id === 'today' ? 'Today' : 'Upcoming'}
               </Text>
             </Pressable>
           ))}
@@ -140,7 +193,10 @@ export default function Home() {
         {/* Events List */}
         <View style={styles.eventsSection}>
           <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Your Schedule</Text>
+            <View style={styles.sectionTitleContainer}>
+              <Ionicons name="calendar" size={20} color="#FF8787" />
+              <Text style={styles.sectionTitle}>Your Schedule</Text>
+            </View>
           </View>
 
           {filteredEvents.length > 0 ? (
@@ -151,19 +207,39 @@ export default function Home() {
                   {...event}
                   onPress={() => {
                     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                    // Open in Google Calendar or show details
-                    Alert.alert(event.title, `Location: ${event.location}`);
+                    Alert.alert(event.title, `Location: ${event.location}\nTime: ${event.startTime} - ${event.endTime}`);
                   }}
                 />
               ))}
             </View>
           ) : (
             <View style={styles.emptyState}>
-              <Ionicons name="calendar-outline" size={48} color="#FF8787" />
+              <View style={styles.emptyIconContainer}>
+                <Ionicons name="calendar-outline" size={48} color="#FF8787" />
+              </View>
               <Text style={styles.emptyTitle}>No events found</Text>
-              <Text style={styles.emptyText}>Tap + to add one or pull down to sync with Google!</Text>
+              <Text style={styles.emptyText}>
+                {selectedFilter === 'all'
+                  ? "Tap the + button to add an event or pull down to sync with Google!"
+                  : selectedFilter === 'today'
+                  ? "No events scheduled for today. Enjoy your free time! 🎉"
+                  : "No upcoming events. Plan something fun!"}
+              </Text>
             </View>
           )}
+        </View>
+
+        {/* Panda Tip */}
+        <View style={styles.tipCard}>
+          <View style={styles.tipIconContainer}>
+            <Ionicons name="bulb-outline" size={24} color="#FFF7B2" />
+          </View>
+          <View style={styles.tipContent}>
+            <Text style={styles.tipTitle}>🐼 Panda Tip</Text>
+            <Text style={styles.tipText}>
+              Your Google Calendar is synced! Tap the + button to add new events.
+            </Text>
+          </View>
         </View>
       </ScrollView>
     </LinearGradient>
@@ -215,50 +291,56 @@ const styles = StyleSheet.create({
     paddingTop: 55,
     paddingBottom: 24,
   },
-  headerTop: {
+  header: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 16,
+  },
+  headerLeft: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: 8,
+    alignItems: 'center',
+    gap: 12,
   },
-  greeting: {
-    fontSize: 14,
-    color: '#9B9B9B',
-    marginBottom: 4,
-  },
-  userName: {
-    fontSize: 28,
-    fontWeight: '700',
-    color: '#3A3A3A',
-    letterSpacing: -0.5,
-  },
-  addButton: {
-    borderRadius: 30,
-    overflow: 'hidden',
-    shadowColor: '#FF8787',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  addButtonGradient: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
+  pandaIconContainer: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: '#FFF5F0',
     justifyContent: 'center',
     alignItems: 'center',
   },
-  dateText: {
-    fontSize: 15,
-    color: '#FF8787',
-    fontWeight: '500',
-    marginTop: 4,
+  pandaIcon: {
+    fontSize: 28,
+  },
+  headerTitle: {
+    fontSize: 20,
+    fontWeight: "700",
+    color: "#3A3A3A",
+    letterSpacing: -0.3,
+  },
+  subtitle: {
+    fontSize: 12,
+    color: "#9B9B9B",
+    marginTop: 2,
+  },
+  addButtonWrapper: {
+    // No background, just wrapper for animation
+  },
+  addButton: {
+    padding: 8,
+    marginRight: -4,
+  },
+  welcomeText: {
+    fontSize: 14,
+    color: '#9B9B9B',
+    marginBottom: 20,
   },
   statsContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     gap: 12,
-    marginTop: 24,
+    marginTop: 8,
   },
   statCard: {
     flex: 1,
@@ -276,7 +358,6 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: '#FFF5F0',
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 12,
@@ -298,9 +379,10 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   filterTab: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    justifyContent: 'center',
     paddingVertical: 8,
     paddingHorizontal: 16,
     borderRadius: 20,
@@ -333,15 +415,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 16,
   },
+  sectionTitleContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
   sectionTitle: {
     fontSize: 18,
     fontWeight: '600',
     color: '#3A3A3A',
-  },
-  seeAllText: {
-    fontSize: 14,
-    color: '#FF8787',
-    fontWeight: '500',
   },
   eventsList: {
     gap: 12,
@@ -350,6 +432,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 48,
     paddingHorizontal: 32,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    marginTop: 8,
   },
   emptyIconContainer: {
     width: 80,
@@ -371,18 +456,6 @@ const styles = StyleSheet.create({
     color: '#9B9B9B',
     textAlign: 'center',
     lineHeight: 20,
-    marginBottom: 24,
-  },
-  emptyButton: {
-    backgroundColor: '#FF8787',
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 25,
-  },
-  emptyButtonText: {
-    color: '#FFFFFF',
-    fontWeight: '600',
-    fontSize: 15,
   },
   tipCard: {
     flexDirection: 'row',
