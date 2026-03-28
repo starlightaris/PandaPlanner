@@ -3,7 +3,6 @@ import { useRouter } from "expo-router";
 import { useState, useEffect } from "react";
 import { Ionicons } from "@expo/vector-icons";
 
-// Google Auth Imports
 import * as Google from 'expo-auth-session/providers/google';
 import * as WebBrowser from 'expo-web-browser';
 import * as AuthSession from 'expo-auth-session';
@@ -12,40 +11,66 @@ import AppInput from "../(components)/AppInput";
 import PrimaryButton from "../(components)/PrimaryButton";
 import { Colors } from "../theme/colors";
 import FirebaseService from "../services/FirebaseService";
+import { useAuth } from '../context/AuthContext';
 
-// Required to handle the popup/redirect back to the app
 WebBrowser.maybeCompleteAuthSession();
 
 export default function LoginScreen() {
   const router = useRouter();
 
+  // 1. Hook into the Global State
+  const { setAccessToken, setUser } = useAuth();
+
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
-  // 1. Initialize Google Auth Request
+  // 2. Initialize Google Auth Request
   const [request, response, promptAsync] = Google.useAuthRequest({
     webClientId: '1015755840124-gn1ob4kv3gpt99dnthfvfacuh50af14b.apps.googleusercontent.com',
+    useProxy: true,
     redirectUri: AuthSession.makeRedirectUri({
+        useProxy: true,
         scheme: 'pandaplanner',
       }),
+    scopes: [
+        'https://www.googleapis.com/auth/calendar.events',
+        'https://www.googleapis.com/auth/tasks',
+      ],
   });
 
-  // 2. Listen for Google Response
+  // 3. Listen for Google Response and Update Global State
   useEffect(() => {
-    if (response?.type === 'success') {
-      const { id_token } = response.params;
-      handleGoogleLogin(id_token);
-    }
-  }, [response]);
+     if (response?.type === 'success') {
+       const { authentication } = response;
+       const token = authentication?.accessToken;
 
-  const handleGoogleLogin = async (idToken: string) => {
+       if (token) {
+         console.log("✅ Panda Token Secured:", token);
+
+         // SAVE TO GLOBAL STATE
+         setAccessToken(token);
+
+         // Continue with Firebase Login (Optional, if you still want a user profile)
+         handleGoogleLogin(token);
+       }
+     } else if (response?.type === 'error') {
+       Alert.alert("Auth Error", "Google login was interrupted.");
+     }
+   }, [response]);
+
+  const handleGoogleLogin = async (token: string) => {
     setIsLoading(true);
     try {
-      await FirebaseService.loginWithGoogle(idToken);
+      // If your FirebaseService.loginWithGoogle needs the access token, pass it here
+      const userProfile = await FirebaseService.loginWithGoogle(token);
+      setUser(userProfile); // Save user info to global state too
+
+      // Navigate to the Dashboard
       router.replace("/(tabs)");
     } catch (error) {
-      Alert.alert("Google Login Failed", "Could not authenticate with Google.");
+      console.error("Firebase Auth Error:", error);
+      Alert.alert("Login Failed", "Authenticated with Google, but couldn't sync with PandaPlanner.");
     } finally {
       setIsLoading(false);
     }
@@ -59,7 +84,8 @@ export default function LoginScreen() {
 
     setIsLoading(true);
     try {
-      await FirebaseService.logIn(email, password);
+      const user = await FirebaseService.logIn(email, password);
+      setUser(user); // Save regular login user to global state
       router.replace("/(tabs)");
     } catch (error: any) {
       let errorMessage = "An unexpected error occurred.";
@@ -156,7 +182,7 @@ const styles = StyleSheet.create({
   },
   googleButton: {
     flexDirection: 'row',
-    backgroundColor: '#4285F4', // Official Google Blue
+    backgroundColor: '#4285F4',
     padding: 16,
     borderRadius: 12,
     justifyContent: 'center',
