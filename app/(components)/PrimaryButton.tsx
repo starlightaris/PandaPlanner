@@ -1,25 +1,42 @@
 import { Pressable, Text, StyleSheet } from "react-native";
+import { LinearGradient } from 'expo-linear-gradient';
 import { Colors } from "../theme/colors";
 
 type Props = {
   title: string;
   onPress: () => void;
+  style?: any;
 };
 
-export default function PrimaryButton({ title, onPress }: Props) {
+export default function PrimaryButton({ title, onPress, style }: Props) {
   return (
-    <Pressable style={styles.button} onPress={onPress}>
-      <Text style={styles.text}>{title}</Text>
+    <Pressable style={[styles.button, style]} onPress={onPress}>
+      <LinearGradient
+        colors={['#FF8787', '#FF9F9F']}
+        style={styles.gradient}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 0 }}
+      >
+        <Text style={styles.text}>{title}</Text>
+      </LinearGradient>
     </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
   button: {
-    backgroundColor: Colors.primary,
-    paddingVertical: 14,
-    borderRadius: 14,
+    borderRadius: 30,
+    overflow: 'hidden',
+    shadowColor: '#FF8787',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  gradient: {
+    paddingVertical: 16,
     alignItems: "center",
+    borderRadius: 30,
   },
   text: {
     color: "white",
