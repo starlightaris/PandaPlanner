@@ -9,11 +9,14 @@ import {
 import {
   addDoc,
   collection,
+  deleteDoc,
+  doc,
   getDocs,
   orderBy,
   query,
   serverTimestamp,
-  Timestamp
+  Timestamp,
+  updateDoc
 } from 'firebase/firestore';
 import { auth, db } from '../../firebaseConfig';
 
@@ -37,7 +40,7 @@ export interface PandaReminder {
 }
 
 class FirebaseService {
-  // AUTH METHODS - Now using the imports
+  // AUTH METHODS
   async signUp(email: string, password: string): Promise<User> {
     const credential = await createUserWithEmailAndPassword(auth, email, password);
     return credential.user;
@@ -72,16 +75,23 @@ class FirebaseService {
     });
   }
 
-  async saveReminder(reminderData: PandaReminder) {
+  async deleteEvent(eventId: string) {
     const userId = auth.currentUser?.uid;
     if (!userId) throw new Error("No authenticated user found");
+    const eventRef = doc(db, 'users', userId, 'schedules', eventId);
+    return await deleteDoc(eventRef);
+  }
 
-    const reminderRef = collection(db, 'users', userId, 'reminders');
-    return await addDoc(reminderRef, {
-      ...reminderData,
-      reminderTime: Timestamp.fromDate(reminderData.reminderTime),
-      createdAt: serverTimestamp(),
-    });
+  async updateEvent(eventId: string, updatedData: Partial<PlannerEvent>) {
+    const userId = auth.currentUser?.uid;
+    if (!userId) throw new Error("No authenticated user found");
+    const eventRef = doc(db, 'users', userId, 'schedules', eventId);
+    
+    const formattedData: any = { ...updatedData };
+    if (updatedData.startTime) formattedData.startTime = Timestamp.fromDate(updatedData.startTime);
+    if (updatedData.endTime) formattedData.endTime = Timestamp.fromDate(updatedData.endTime);
+    
+    return await updateDoc(eventRef, { ...formattedData, updatedAt: serverTimestamp() });
   }
 
   async getUserEvents(): Promise<PlannerEvent[]> {

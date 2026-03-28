@@ -3,10 +3,9 @@ import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from "expo-router";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Animated, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Alert, Animated, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
 import { Calendar } from "react-native-calendars";
 
-// --- PROJECT IMPORTS ---
 import EventCard from "../(components)/EventCard";
 import { useAuth } from '../context/AuthContext';
 import FirebaseService from "../services/FirebaseService";
@@ -46,11 +45,10 @@ export default function CalendarScreen() {
         })) || [];
       }
 
-      // Fetch from Firebase (Gracefully handles empty/no data)
       const firestoreEvents = await FirebaseService.getUserEvents();
       const formattedFirebase = firestoreEvents.map((event: any) => {
-        const start = event.startTime?.seconds ? new Date(event.startTime.seconds * 1000) : new Date(event.startTime);
-        const end = event.endTime?.seconds ? new Date(event.endTime.seconds * 1000) : new Date(event.endTime);
+        const start = event.startTime;
+        const end = event.endTime;
         return {
           id: event.id,
           title: event.title,
@@ -68,7 +66,7 @@ export default function CalendarScreen() {
     }
   }, [accessToken]);
 
-  // --- CONFLICT DETECTION ---
+  // --- CONFLICT LOGIC ---
   const getConflictedIds = useCallback(() => {
     const conflicted = new Set<string>();
     const eventsByDate: { [key: string]: any[] } = {};
@@ -95,6 +93,26 @@ export default function CalendarScreen() {
 
   const conflicts = getConflictedIds();
 
+  const handleResolveConflict = (eventId: string, title: string) => {
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+    Alert.alert(
+      "Resolve Schedule Conflict",
+      `"${title}" overlaps with another event. How would you like Panda to handle this?`,
+      [
+        { text: "Keep Both", style: "cancel" },
+        { text: "Reschedule", onPress: () => router.push({ pathname: "/add-event", params: { id: eventId, edit: "true" } as any }) },
+        { 
+          text: "Remove Event", 
+          style: "destructive",
+          onPress: async () => {
+            await FirebaseService.deleteEvent(eventId);
+            onRefresh();
+          }
+        }
+      ]
+    );
+  };
+
   useEffect(() => {
     fetchAllEvents();
     Animated.parallel([
@@ -109,7 +127,7 @@ export default function CalendarScreen() {
     fetchAllEvents().finally(() => setRefreshing(false));
   };
 
-  // --- HELPERS ---
+  // --- VIEW HELPERS ---
   const getWeekDays = (dateString: string) => {
     const refDate = new Date(dateString);
     const sunday = new Date(refDate);
@@ -134,7 +152,7 @@ export default function CalendarScreen() {
     return marked;
   };
 
-  // --- RENDER METHODS ---
+  // --- RENDERERS ---
   const renderWeekView = () => {
     const weekDays = getWeekDays(selectedDate);
     const dayLabels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -159,7 +177,7 @@ export default function CalendarScreen() {
                 <Text style={[styles.weekDayName, isSelected && styles.weekDayNameSelected]}>{dayLabels[index]}</Text>
                 <Text style={[styles.weekDayDate, isSelected && styles.weekDayDateSelected]}>{new Date(dateStr).getDate()}</Text>
                 {dayEvents.length > 0 && (
-                  <View style={[styles.weekDot, { backgroundColor: hasConflict ? '#FF5252' : '#9BD8EC' }]} />
+                  <View style={[styles.weekDot, { backgroundColor: hasConflict ? '#FF5252' : '#FF8787' }]} />
                 )}
               </Pressable>
             );
@@ -167,7 +185,12 @@ export default function CalendarScreen() {
         </View>
         <View style={styles.eventsList}>
           {events.filter(e => e.date === selectedDate).map(event => (
-            <EventCard key={event.id} {...event} hasConflict={conflicts.has(event.id)} />
+            <EventCard 
+                key={event.id} 
+                {...event} 
+                hasConflict={conflicts.has(event.id)} 
+                onPress={() => conflicts.has(event.id) && handleResolveConflict(event.id, event.title)}
+            />
           ))}
         </View>
       </View>
@@ -178,7 +201,6 @@ export default function CalendarScreen() {
     <LinearGradient colors={['#FFFFFF', '#FFFBF5']} style={styles.container}>
       <Animated.View style={[styles.content, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
         
-        {/* Header */}
         <View style={styles.header}>
           <Pressable onPress={() => router.back()} style={styles.headerButton}>
             <Ionicons name="arrow-back" size={24} color="#5C5C5C" />
@@ -189,7 +211,6 @@ export default function CalendarScreen() {
           </Pressable>
         </View>
 
-        {/* Mode Toggle */}
         <View style={styles.viewModeContainer}>
           {['month', 'week', 'day'].map((mode) => (
             <Pressable
@@ -213,12 +234,7 @@ export default function CalendarScreen() {
               <Calendar
                 onDayPress={(day) => setSelectedDate(day.dateString)}
                 markedDates={getMarkedDates()}
-                theme={{
-                  todayTextColor: '#FF8787',
-                  arrowColor: '#FF8787',
-                  selectedDayBackgroundColor: '#FF8787',
-                  calendarBackground: 'transparent',
-                }}
+                theme={{ todayTextColor: '#FF8787', arrowColor: '#FF8787', selectedDayBackgroundColor: '#FF8787' }}
               />
             </View>
           )}
@@ -229,7 +245,12 @@ export default function CalendarScreen() {
                 {new Date(selectedDate).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
               </Text>
               {events.filter(e => e.date === selectedDate).map(event => (
-                <EventCard key={event.id} {...event} hasConflict={conflicts.has(event.id)} />
+                <EventCard 
+                    key={event.id} 
+                    {...event} 
+                    hasConflict={conflicts.has(event.id)} 
+                    onPress={() => conflicts.has(event.id) && handleResolveConflict(event.id, event.title)}
+                />
               ))}
               {events.filter(e => e.date === selectedDate).length === 0 && (
                 <Text style={styles.emptyText}>No events for this day</Text>
