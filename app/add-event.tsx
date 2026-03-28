@@ -1,3 +1,5 @@
+import { View, Text, StyleSheet, ScrollView, Pressable, Alert, ActivityIndicator, Modal, Animated, Dimensions, Platform } from "react-native";
+import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import * as Haptics from 'expo-haptics';
@@ -134,12 +136,35 @@ export default function AddEvent() {
           <View style={{ width: 40 }} /> 
         </View>
 
+        {/* Custom iOS Toggle */}
         <View style={styles.toggleContainer}>
           <View style={styles.toggleBackground}>
+            <Animated.View
+              style={[
+                styles.toggleThumb,
+                {
+                  transform: [{ translateX: togglePosition }]
+                }
+              ]}
+            />
+            <Pressable
+              style={styles.toggleOption}
+              onPress={() => isReminder && toggleSwitch()}
+            >
+              <Text style={[styles.toggleText, !isReminder && styles.toggleTextActive]}>
+                📅 Event
+              </Text>
             <Animated.View style={[styles.toggleThumb, { transform: [{ translateX: togglePosition }] }]} />
             <Pressable style={styles.toggleOption} onPress={() => setIsReminder(false)}>
               <Text style={[styles.toggleText, !isReminder && styles.toggleTextActive]}>📅 Event</Text>
             </Pressable>
+            <Pressable
+              style={styles.toggleOption}
+              onPress={() => !isReminder && toggleSwitch()}
+            >
+              <Text style={[styles.toggleText, isReminder && styles.toggleTextActive]}>
+                ⏰ Reminder
+              </Text>
             <Pressable style={styles.toggleOption} onPress={() => setIsReminder(true)}>
               <Text style={[styles.toggleText, isReminder && styles.toggleTextActive]}>⏰ Reminder</Text>
             </Pressable>
@@ -216,12 +241,91 @@ export default function AddEvent() {
                 </Pressable>
               </View>
               <DateTimePicker
+                mode="date"
+                value={date}
+                onChange={(_, d) => d && setDate(d)}
+                display="spinner"
+                textColor="#000"
+              />
+            )}
+            {showStart && (
+              <DateTimePicker
+                mode="time"
+                value={startTime}
+                onChange={(_, d) => d && setStartTime(d)}
+                display="spinner"
+                textColor="#000"
+              />
+            )}
+            {showEnd && (
+              <DateTimePicker
+                mode="time"
+                value={endTime}
+                onChange={(_, d) => d && setEndTime(d)}
+                display="spinner"
+                textColor="#000"
+              />
+            )}
+            {showReminderTime && (
+              <DateTimePicker
+                mode="time"
+                value={reminderTime}
+                onChange={(_, d) => d && setReminderTime(d)}
+                display="spinner"
+                textColor="#000"
+              />
+            )}
+          </View>
+        </View>
+      </Modal>
+
+      {/* Menu Modal - Added Import Option */}
+      <Modal
+        visible={menuVisible}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setMenuVisible(false)}
+      >
+        <Pressable style={styles.overlay} onPress={() => setMenuVisible(false)}>
+          <View style={styles.menu}>
+            <View style={styles.menuHeader}>
+              <Text style={styles.menuHeaderText}>🐼 Panda Menu</Text>
                 value={pickerMode.field === 'date' ? date : (pickerMode.field === 'start' ? startTime : (pickerMode.field === 'end' ? endTime : reminderTime))}
                 mode={pickerMode.type}
                 display={Platform.OS === 'ios' ? 'spinner' : 'default'}
                 onChange={onPickerChange}
               />
             </View>
+
+            {/* Import Schedule Option */}
+            <Pressable style={styles.menuItem} onPress={() => {
+              setMenuVisible(false);
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              router.push("/import");
+            }}>
+              <Ionicons name="cloud-upload-outline" size={20} color="#FF8787" />
+              <Text style={styles.menuText}>Import Schedule</Text>
+            </Pressable>
+
+            {/* Help & Tips Option */}
+            <Pressable style={styles.menuItem} onPress={() => {
+              setMenuVisible(false);
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              Alert.alert("🐼 Panda Help", "Add events or reminders and I'll keep you organized! Double tap any field to edit.");
+            }}>
+              <Ionicons name="help-circle-outline" size={20} color="#FF8787" />
+              <Text style={styles.menuText}>Help & Tips</Text>
+            </Pressable>
+
+            {/* Cancel Option */}
+            <Pressable style={styles.menuItem} onPress={() => {
+              setMenuVisible(false);
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              router.back();
+            }}>
+              <Ionicons name="close-circle-outline" size={20} color="#FF8787" />
+              <Text style={styles.menuText}>Cancel</Text>
+            </Pressable>
           </View>
         </Modal>
       )}
@@ -230,6 +334,276 @@ export default function AddEvent() {
 }
 
 const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+  },
+  decorativeEarLeft: {
+    position: 'absolute',
+    top: -20,
+    left: -20,
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: '#9BD8EC',
+    opacity: 0.3,
+    transform: [{ rotate: '-15deg' }],
+  },
+  decorativeEarRight: {
+    position: 'absolute',
+    top: -20,
+    right: -20,
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: '#9BD8EC',
+    opacity: 0.3,
+    transform: [{ rotate: '15deg' }],
+  },
+  contentWrapper: {
+    flex: 1,
+  },
+  header: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingHorizontal: 20,
+    paddingTop: 55,
+    paddingBottom: 16,
+    backgroundColor: "transparent",
+  },
+  headerButton: {
+    padding: 8,
+    borderRadius: 30,
+    backgroundColor: 'rgba(255,255,255,0.8)',
+  },
+  headerCenter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  headerTitle: {
+    fontSize: 20,
+    fontWeight: "700",
+    color: '#3A3A3A',
+    letterSpacing: -0.3,
+  },
+  headerPanda: {
+    backgroundColor: '#FFF7B2',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 20,
+  },
+  headerEmoji: {
+    fontSize: 14,
+  },
+  toggleContainer: {
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    marginBottom: 24,
+  },
+  toggleBackground: {
+    flexDirection: 'row',
+    backgroundColor: '#F0F0F0',
+    borderRadius: 100,
+    padding: 4,
+    width: '100%',
+    position: 'relative',
+    height: 50,
+  },
+  toggleThumb: {
+    position: 'absolute',
+    width: '48%',
+    height: 42,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 100,
+    top: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+  },
+  toggleOption: {
+    flex: 1,
+    paddingVertical: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 100,
+    zIndex: 1,
+  },
+  toggleOptionActive: {
+    backgroundColor: 'transparent',
+  },
+  toggleText: {
+    fontSize: 15,
+    fontWeight: '500',
+    color: '#8E8E93',
+  },
+  toggleTextActive: {
+    color: '#FF8787',
+    fontWeight: '600',
+  },
+  scrollContent: {
+    paddingBottom: 40,
+  },
+  card: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    marginHorizontal: 20,
+    marginBottom: 12,
+    padding: 16,
+    shadowColor: '#9BD8EC',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  cardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+    gap: 8,
+  },
+  cardEmoji: {
+    fontSize: 18,
+  },
+  cardTitle: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#9B9B9B',
+    letterSpacing: -0.2,
+  },
+  input: {
+    fontSize: 16,
+    paddingVertical: 8,
+    borderWidth: 0,
+    backgroundColor: 'transparent',
+    color: '#3A3A3A',
+  },
+  cardValue: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingTop: 4,
+  },
+  valueText: {
+    fontSize: 16,
+    color: '#5C5C5C',
+    fontWeight: '500',
+  },
+  tipCard: {
+    backgroundColor: '#FFF7B2',
+    borderRadius: 20,
+    marginHorizontal: 20,
+    marginTop: 16,
+    marginBottom: 24,
+    padding: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  tipEmoji: {
+    fontSize: 28,
+  },
+  tipText: {
+    flex: 1,
+    fontSize: 13,
+    color: '#8B6B4D',
+    lineHeight: 18,
+  },
+  buttonWrapper: {
+    marginHorizontal: 20,
+    marginTop: 8,
+  },
+  saveButton: {
+    borderRadius: 30,
+    overflow: 'hidden',
+    shadowColor: '#FF8787',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 12,
+    elevation: 5,
+  },
+  saveButtonGradient: {
+    paddingVertical: 16,
+    alignItems: 'center',
+  },
+  saveButtonText: {
+    color: '#FFFFFF',
+    fontSize: 17,
+    fontWeight: '700',
+  },
+  overlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.2)",
+    alignItems: "flex-end",
+    paddingTop: 100,
+    paddingRight: 20,
+  },
+  menu: {
+    backgroundColor: "white",
+    borderRadius: 20,
+    padding: 8,
+    width: 180,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    elevation: 5,
+  },
+  menuHeader: {
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F0F0F0',
+  },
+  menuHeaderText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#FF8787',
+  },
+  menuItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    padding: 12,
+    borderRadius: 12,
+    marginTop: 4,
+  },
+  menuText: {
+    marginLeft: 12,
+    fontSize: 15,
+    color: '#5C5C5C',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    justifyContent: 'flex-end',
+  },
+  pickerContainer: {
+    backgroundColor: 'white',
+    borderTopLeftRadius: 25,
+    borderTopRightRadius: 25,
+    paddingBottom: 40,
+    paddingHorizontal: 20,
+  },
+  pickerHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 15,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F0F0F0',
+  },
+  pickerTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#3A3A3A',
+  },
+  doneText: {
+    fontSize: 17,
+    fontWeight: '700',
+    color: '#FF8787',
+    paddingHorizontal: 10,
+  },
   container: { flex: 1 },
   contentWrapper: { flex: 1 },
   header: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingHorizontal: 20, paddingTop: 55, paddingBottom: 16 },
