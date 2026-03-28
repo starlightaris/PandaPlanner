@@ -70,6 +70,10 @@ export default function CalendarScreen() {
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(30)).current;
 
+  // Animation for the + button
+  const addButtonScale = useRef(new Animated.Value(1)).current;
+  const addButtonRotate = useRef(new Animated.Value(0)).current;
+
   useEffect(() => {
     Animated.parallel([
       Animated.timing(fadeAnim, {
@@ -96,6 +100,31 @@ export default function CalendarScreen() {
 
   const handleAddEvent = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+
+    // Animate the + button
+    Animated.sequence([
+      Animated.timing(addButtonScale, {
+        toValue: 0.8,
+        duration: 100,
+        useNativeDriver: true,
+      }),
+      Animated.timing(addButtonRotate, {
+        toValue: 1,
+        duration: 150,
+        useNativeDriver: true,
+      }),
+      Animated.timing(addButtonScale, {
+        toValue: 1,
+        duration: 100,
+        useNativeDriver: true,
+      }),
+      Animated.timing(addButtonRotate, {
+        toValue: 0,
+        duration: 150,
+        useNativeDriver: true,
+      }),
+    ]).start();
+
     router.push("/add-event");
   };
 
@@ -149,6 +178,11 @@ export default function CalendarScreen() {
     { id: 'day', label: 'Day', icon: 'today-outline' }
   ];
 
+  const rotateInterpolate = addButtonRotate.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['0deg', '45deg']
+  });
+
   return (
     <LinearGradient
       colors={['#FFFFFF', '#FFFBF5']}
@@ -186,19 +220,23 @@ export default function CalendarScreen() {
               <Text style={styles.pandaEmoji}>🐼</Text>
             </View>
           </View>
-          <Pressable
-            style={styles.addButton}
-            onPress={handleAddEvent}
+          <Animated.View
+            style={[
+              styles.addButtonWrapper,
+              {
+                transform: [{ scale: addButtonScale }]
+              }
+            ]}
           >
-            <LinearGradient
-              colors={['#FF8787', '#FF9F9F']}
-              style={styles.addButtonGradient}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
+            <Pressable
+              onPress={handleAddEvent}
+              style={styles.addButton}
             >
-              <Ionicons name="add" size={22} color="#FFFFFF" />
-            </LinearGradient>
-          </Pressable>
+              <Animated.View style={{ transform: [{ rotate: rotateInterpolate }] }}>
+                <Ionicons name="add" size={28} color="#FF8787" />
+              </Animated.View>
+            </Pressable>
+          </Animated.View>
         </View>
 
         {/* View Mode Toggle */}
@@ -430,21 +468,12 @@ const styles = StyleSheet.create({
   pandaEmoji: {
     fontSize: 14,
   },
-  addButton: {
-    borderRadius: 30,
-    overflow: 'hidden',
-    shadowColor: '#FF8787',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 3,
+  addButtonWrapper: {
+    padding: 8,
   },
-  addButtonGradient: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    justifyContent: 'center',
-    alignItems: 'center',
+  addButton: {
+    padding: 8,
+    marginRight: -4,
   },
   viewModeContainer: {
     flexDirection: 'row',

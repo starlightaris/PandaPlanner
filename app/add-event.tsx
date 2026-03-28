@@ -703,14 +703,14 @@ toggleBackground: {
 
   modalOverlay: {
       flex: 1,
-      backgroundColor: 'rgba(0,0,0,0.4)', // Dim the background
-      justifyContent: 'flex-end', // Pull the picker to the bottom
+      backgroundColor: 'rgba(0,0,0,0.4)',
+      justifyContent: 'flex-end',
     },
     pickerContainer: {
       backgroundColor: 'white',
       borderTopLeftRadius: 25,
       borderTopRightRadius: 25,
-      paddingBottom: 40, // Space for the home indicator
+      paddingBottom: 40,
       paddingHorizontal: 20,
     },
     pickerHeader: {
@@ -729,7 +729,7 @@ toggleBackground: {
     doneText: {
       fontSize: 17,
       fontWeight: '700',
-      color: '#FF8787', // Using your Grapefruit color
+      color: '#FF8787',
       paddingHorizontal: 10,
     },
 });
