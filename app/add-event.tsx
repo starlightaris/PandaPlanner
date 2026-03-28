@@ -1,5 +1,4 @@
-import { View, Text, StyleSheet, ScrollView, Pressable, Alert, ActivityIndicator, Modal, Animated, Dimensions, Platform } from "react-native";
-import { useRouter } from "expo-router";
+import { View, Text, StyleSheet, ScrollView, Pressable, Alert, ActivityIndicator, Modal, Animated, Dimensions, Platform } from "react-native";import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { useState, useRef, useEffect } from "react";
@@ -10,7 +9,6 @@ import { Colors } from "./theme/colors";
 import AppInput from "./(components)/AppInput";
 import PrimaryButton from "./(components)/PrimaryButton";
 import FirebaseService from "./services/FirebaseService";
-import GoogleService from "./services/GoogleService"; // Add this import
 
 const { width } = Dimensions.get('window');
 
@@ -82,29 +80,23 @@ export default function AddEvent() {
       return;
     }
 
-    // You'll need to pass your Google Access Token here.
-    // For now, let's assume you're getting it from your Auth context/state.
-    const accessToken = "YOUR_GOOGLE_ACCESS_TOKEN";
-
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     setIsLoading(true);
 
     try {
       if (isReminder) {
-        const finalReminderTime = combineDateAndTime(date, reminderTime).toISOString();
-
-        // 1. Save to Google Tasks API
-        await GoogleService.saveReminder({
+        const finalReminderTime = combineDateAndTime(date, reminderTime);
+        await FirebaseService.saveReminder({
           title,
-          location: location || "Panda Reminder",
-          reminderTime: finalReminderTime,
-        }, accessToken);
-
+          location: location || undefined,
+          reminderTime: finalReminderTime.toISOString(),
+          isCompleted: false,
+          category: "General"
+        });
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-        Alert.alert("🎋 Panda Reminder Set!", "I've added this to your Google Tasks!", [
+        Alert.alert("🎋 Panda Reminder Set!", "I'll remind you when it's time!", [
           { text: "Yay!", onPress: () => router.back() }
         ]);
-
       } else {
         const finalStart = combineDateAndTime(date, startTime);
         const finalEnd = combineDateAndTime(date, endTime);
@@ -116,23 +108,22 @@ export default function AddEvent() {
           return;
         }
 
-        // 2. Save to Google Calendar API
-        await GoogleService.saveEvent({
+        await FirebaseService.saveEvent({
           title,
           location,
           startTime: finalStart.toISOString(),
           endTime: finalEnd.toISOString(),
-        }, accessToken);
-
+          source: "Manual",
+          category: "General"
+        });
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-        Alert.alert("🎋 Event Synced!", "Panda Planner added this to your Google Calendar!", [
+        Alert.alert("🎋 Event Saved!", "Panda Planner has secured your slot!", [
           { text: "Awesome!", onPress: () => router.back() }
         ]);
       }
     } catch (error) {
-      console.error("Sync Error:", error);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      Alert.alert("🐼 Oops!", "I couldn't talk to Google. Is your internet on?");
+      Alert.alert("🐼 Oops!", "Something went wrong. Please try again!");
     } finally {
       setIsLoading(false);
     }
@@ -156,43 +147,6 @@ export default function AddEvent() {
     inputRange: [0, 1],
     outputRange: [4, width * 0.4 - 4],
   });
-
-  // For iOS native date picker
-  const onDateChange = (event: any, selectedDate?: Date) => {
-    if (Platform.OS === 'android') {
-      setShowDate(false);
-    }
-    if (selectedDate) {
-      setDate(selectedDate);
-    }
-  };
-
-  const onStartTimeChange = (event: any, selectedTime?: Date) => {
-    if (Platform.OS === 'android') {
-      setShowStart(false);
-    }
-    if (selectedTime) {
-      setStartTime(selectedTime);
-    }
-  };
-
-  const onEndTimeChange = (event: any, selectedTime?: Date) => {
-    if (Platform.OS === 'android') {
-      setShowEnd(false);
-    }
-    if (selectedTime) {
-      setEndTime(selectedTime);
-    }
-  };
-
-  const onReminderTimeChange = (event: any, selectedTime?: Date) => {
-    if (Platform.OS === 'android') {
-      setShowReminderTime(false);
-    }
-    if (selectedTime) {
-      setReminderTime(selectedTime);
-    }
-  };
 
   return (
     <LinearGradient
@@ -249,6 +203,7 @@ export default function AddEvent() {
               style={[
                 styles.toggleThumb,
                 {
+                  // Use a fixed width calculation so it doesn't jump
                   transform: [{ translateX: togglePosition }]
                 }
               ]}
@@ -404,39 +359,70 @@ export default function AddEvent() {
         </ScrollView>
       </Animated.View>
 
-      {/* Date Time Pickers - Fixed for both iOS and Android */}
-      {showDate && (
-        <DateTimePicker
-          mode="date"
-          value={date}
-          onChange={onDateChange}
-          display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-        />
-      )}
-      {showStart && (
-        <DateTimePicker
-          mode="time"
-          value={startTime}
-          onChange={onStartTimeChange}
-          display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-        />
-      )}
-      {showEnd && (
-        <DateTimePicker
-          mode="time"
-          value={endTime}
-          onChange={onEndTimeChange}
-          display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-        />
-      )}
-      {showReminderTime && (
-        <DateTimePicker
-          mode="time"
-          value={reminderTime}
-          onChange={onReminderTimeChange}
-          display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-        />
-      )}
+      {/* Date Time Pickers */}
+      <Modal
+        visible={showDate || showStart || showEnd || showReminderTime}
+        transparent={true}
+        animationType="slide"
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.pickerContainer}>
+            {/* Header with Done Button */}
+            <View style={styles.pickerHeader}>
+              <Text style={styles.pickerTitle}>Select {showDate ? 'Date' : 'Time'}</Text>
+              <Pressable
+                onPress={() => {
+                  setShowDate(false);
+                  setShowStart(false);
+                  setShowEnd(false);
+                  setShowReminderTime(false);
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                }}
+              >
+                <Text style={styles.doneText}>Done</Text>
+              </Pressable>
+            </View>
+
+            {/* The Actual Picker */}
+            {showDate && (
+              <DateTimePicker
+                mode="date"
+                value={date}
+                onChange={(_, d) => d && setDate(d)}
+                display="spinner"
+                textColor="#000"
+              />
+            )}
+            {showStart && (
+              <DateTimePicker
+                mode="time"
+                value={startTime}
+                onChange={(_, d) => d && setStartTime(d)}
+                display="spinner"
+                textColor="#000"
+              />
+            )}
+            {showEnd && (
+              <DateTimePicker
+                mode="time"
+                value={endTime}
+                onChange={(_, d) => d && setEndTime(d)}
+                display="spinner"
+                textColor="#000"
+              />
+            )}
+            {showReminderTime && (
+              <DateTimePicker
+                mode="time"
+                value={reminderTime}
+                onChange={(_, d) => d && setReminderTime(d)}
+                display="spinner"
+                textColor="#000"
+              />
+            )}
+          </View>
+        </View>
+      </Modal>
 
       {/* Menu Modal */}
       <Modal
@@ -450,18 +436,6 @@ export default function AddEvent() {
             <View style={styles.menuHeader}>
               <Text style={styles.menuHeaderText}>🐼 Panda Menu</Text>
             </View>
-
-            {/* Import Option */}
-            <Pressable style={styles.menuItem} onPress={() => {
-              setMenuVisible(false);
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-              router.push("/import");
-            }}>
-              <Ionicons name="cloud-upload-outline" size={20} color="#FF8787" />
-              <Text style={styles.menuText}>Import Schedule</Text>
-            </Pressable>
-
-            {/* Help & Tips Option */}
             <Pressable style={styles.menuItem} onPress={() => {
               setMenuVisible(false);
               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -470,8 +444,6 @@ export default function AddEvent() {
               <Ionicons name="help-circle-outline" size={20} color="#FF8787" />
               <Text style={styles.menuText}>Help & Tips</Text>
             </Pressable>
-
-            {/* Cancel Option */}
             <Pressable style={styles.menuItem} onPress={() => {
               setMenuVisible(false);
               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -555,22 +527,23 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     marginBottom: 24,
   },
-  toggleBackground: {
+toggleBackground: {
     flexDirection: 'row',
     backgroundColor: '#F0F0F0',
     borderRadius: 100,
     padding: 4,
-    width: '100%',
+    width: '100%', // Use percentage for stability
     position: 'relative',
     height: 50,
   },
   toggleThumb: {
     position: 'absolute',
-    width: '48%',
-    height: 42,
+    width: '48%', // Almost half
+    height: 42,   // Fixed height inside the 50px container
     backgroundColor: '#FFFFFF',
     borderRadius: 100,
     top: 4,
+    // Remove elevation if it causes weird borders on Android
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
@@ -583,6 +556,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     borderRadius: 100,
     zIndex: 1,
+  },
+  toggleOptionActive: {
+    backgroundColor: 'transparent',
   },
   toggleText: {
     fontSize: 15,
@@ -724,4 +700,36 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: '#5C5C5C',
   },
+
+  modalOverlay: {
+      flex: 1,
+      backgroundColor: 'rgba(0,0,0,0.4)', // Dim the background
+      justifyContent: 'flex-end', // Pull the picker to the bottom
+    },
+    pickerContainer: {
+      backgroundColor: 'white',
+      borderTopLeftRadius: 25,
+      borderTopRightRadius: 25,
+      paddingBottom: 40, // Space for the home indicator
+      paddingHorizontal: 20,
+    },
+    pickerHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      paddingVertical: 15,
+      borderBottomWidth: 1,
+      borderBottomColor: '#F0F0F0',
+    },
+    pickerTitle: {
+      fontSize: 16,
+      fontWeight: '600',
+      color: '#3A3A3A',
+    },
+    doneText: {
+      fontSize: 17,
+      fontWeight: '700',
+      color: '#FF8787', // Using your Grapefruit color
+      paddingHorizontal: 10,
+    },
 });
