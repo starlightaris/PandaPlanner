@@ -1,4 +1,5 @@
-import { View, Text, StyleSheet, ScrollView, Pressable, Alert, ActivityIndicator, Modal, Animated, Dimensions, Platform } from "react-native";import { useRouter } from "expo-router";
+import { View, Text, StyleSheet, ScrollView, Pressable, Alert, ActivityIndicator, Modal, Animated, Dimensions, Platform } from "react-native";
+import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { useState, useRef, useEffect } from "react";
@@ -196,21 +197,20 @@ export default function AddEvent() {
           </Pressable>
         </View>
 
-        {/* Custom iOS Toggle - FIXED LOGIC */}
+        {/* Custom iOS Toggle */}
         <View style={styles.toggleContainer}>
           <View style={styles.toggleBackground}>
             <Animated.View
               style={[
                 styles.toggleThumb,
                 {
-                  // Use a fixed width calculation so it doesn't jump
                   transform: [{ translateX: togglePosition }]
                 }
               ]}
             />
             <Pressable
               style={styles.toggleOption}
-              onPress={() => isReminder && toggleSwitch()} // Switch to Event if currently Reminder
+              onPress={() => isReminder && toggleSwitch()}
             >
               <Text style={[styles.toggleText, !isReminder && styles.toggleTextActive]}>
                 📅 Event
@@ -218,7 +218,7 @@ export default function AddEvent() {
             </Pressable>
             <Pressable
               style={styles.toggleOption}
-              onPress={() => !isReminder && toggleSwitch()} // Switch to Reminder if currently Event
+              onPress={() => !isReminder && toggleSwitch()}
             >
               <Text style={[styles.toggleText, isReminder && styles.toggleTextActive]}>
                 ⏰ Reminder
@@ -424,7 +424,7 @@ export default function AddEvent() {
         </View>
       </Modal>
 
-      {/* Menu Modal */}
+      {/* Menu Modal - Added Import Option */}
       <Modal
         visible={menuVisible}
         transparent={true}
@@ -436,6 +436,18 @@ export default function AddEvent() {
             <View style={styles.menuHeader}>
               <Text style={styles.menuHeaderText}>🐼 Panda Menu</Text>
             </View>
+
+            {/* Import Schedule Option */}
+            <Pressable style={styles.menuItem} onPress={() => {
+              setMenuVisible(false);
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              router.push("/import");
+            }}>
+              <Ionicons name="cloud-upload-outline" size={20} color="#FF8787" />
+              <Text style={styles.menuText}>Import Schedule</Text>
+            </Pressable>
+
+            {/* Help & Tips Option */}
             <Pressable style={styles.menuItem} onPress={() => {
               setMenuVisible(false);
               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -444,6 +456,8 @@ export default function AddEvent() {
               <Ionicons name="help-circle-outline" size={20} color="#FF8787" />
               <Text style={styles.menuText}>Help & Tips</Text>
             </Pressable>
+
+            {/* Cancel Option */}
             <Pressable style={styles.menuItem} onPress={() => {
               setMenuVisible(false);
               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -527,23 +541,22 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     marginBottom: 24,
   },
-toggleBackground: {
+  toggleBackground: {
     flexDirection: 'row',
     backgroundColor: '#F0F0F0',
     borderRadius: 100,
     padding: 4,
-    width: '100%', // Use percentage for stability
+    width: '100%',
     position: 'relative',
     height: 50,
   },
   toggleThumb: {
     position: 'absolute',
-    width: '48%', // Almost half
-    height: 42,   // Fixed height inside the 50px container
+    width: '48%',
+    height: 42,
     backgroundColor: '#FFFFFF',
     borderRadius: 100,
     top: 4,
-    // Remove elevation if it causes weird borders on Android
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
@@ -700,36 +713,35 @@ toggleBackground: {
     fontSize: 15,
     color: '#5C5C5C',
   },
-
   modalOverlay: {
-      flex: 1,
-      backgroundColor: 'rgba(0,0,0,0.4)',
-      justifyContent: 'flex-end',
-    },
-    pickerContainer: {
-      backgroundColor: 'white',
-      borderTopLeftRadius: 25,
-      borderTopRightRadius: 25,
-      paddingBottom: 40,
-      paddingHorizontal: 20,
-    },
-    pickerHeader: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-      paddingVertical: 15,
-      borderBottomWidth: 1,
-      borderBottomColor: '#F0F0F0',
-    },
-    pickerTitle: {
-      fontSize: 16,
-      fontWeight: '600',
-      color: '#3A3A3A',
-    },
-    doneText: {
-      fontSize: 17,
-      fontWeight: '700',
-      color: '#FF8787',
-      paddingHorizontal: 10,
-    },
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    justifyContent: 'flex-end',
+  },
+  pickerContainer: {
+    backgroundColor: 'white',
+    borderTopLeftRadius: 25,
+    borderTopRightRadius: 25,
+    paddingBottom: 40,
+    paddingHorizontal: 20,
+  },
+  pickerHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 15,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F0F0F0',
+  },
+  pickerTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#3A3A3A',
+  },
+  doneText: {
+    fontSize: 17,
+    fontWeight: '700',
+    color: '#FF8787',
+    paddingHorizontal: 10,
+  },
 });
