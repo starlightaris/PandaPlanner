@@ -6,8 +6,8 @@ import React, { useState } from "react";
 import { Alert, Modal, Pressable, ScrollView, StyleSheet, Switch, Text, View } from "react-native";
 
 // --- YOUR IMPORTS ---
-import { useAuth } from '../context/AuthContext';
-import FirebaseService from "../services/FirebaseService";
+import { useAuth } from '../../context/AuthContext';
+import FirebaseService from "../../services/FirebaseService";
 
 export default function SettingsScreen() {
   const router = useRouter();

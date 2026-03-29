@@ -7,14 +7,13 @@ import { useEffect, useRef, useState } from "react";
 import { ActivityIndicator, Alert, Animated, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 
 import * as AuthSession from 'expo-auth-session';
-import * as AuthSession from 'expo-auth-session';
 import * as Google from 'expo-auth-session/providers/google';
 import * as WebBrowser from 'expo-web-browser';
 
 import AppInput from "../(components)/AppInput";
 import PrimaryButton from "../(components)/PrimaryButton";
 import { useAuth } from '../../context/AuthContext';
-import FirebaseService from "../../services/FirebaseService";
+import FirebaseService, { auth } from "../../services/FirebaseService";
 
 WebBrowser.maybeCompleteAuthSession();
 

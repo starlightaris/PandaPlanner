@@ -6,11 +6,10 @@ import { useRouter } from "expo-router";
 import { useEffect, useRef, useState } from "react";
 import { ActivityIndicator, Alert, Animated, Dimensions, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 
-import FirebaseService from "../services/FirebaseService";
+import FirebaseService, { PlannerEvent } from "../services/FirebaseService";
 import AppInput from "./(components)/AppInput";
-import { useAuth } from "./context/AuthContext";
-import FirebaseService from "./services/FirebaseService";
-import { GoogleService } from "./services/GoogleService";
+import { useAuth } from "../context/AuthContext";
+import { GoogleService } from "../services/GoogleService";
 
 const { width } = Dimensions.get('window');
 
@@ -146,12 +145,6 @@ export default function AddEvent() {
       setIsLoading(false);
     }
   };
-
-  const [pickerMode, setPickerMode] = useState<{ visible: boolean, type: 'date' | 'time', field: string }>({
-    visible: false,
-    type: 'date',
-    field: ''
-  });
 
   const showPicker = (type: 'date' | 'time', field: string) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
