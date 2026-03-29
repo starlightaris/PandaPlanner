@@ -21,6 +21,8 @@ import {
 } from 'firebase/firestore';
 import { auth, db } from '../../firebaseConfig';
 
+export { auth };
+
 export interface PlannerEvent {
   id?: string;
   title: string;

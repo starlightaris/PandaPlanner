@@ -17,15 +17,32 @@ if (typeof atob === 'undefined') {
 export default function RootLayout() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-
       <AuthProvider>
         <Stack screenOptions={{ headerShown: false }}>
+          {/* Index handles the initial routing logic */}
           <Stack.Screen name="index" />
-          <Stack.Screen name="add-event" options={{ presentation: 'modal' }} />
+
+          {/* Main App Groups */}
+          <Stack.Screen name="(auth)" />
+          <Stack.Screen name="(tabs)" />
+
+          {/* Modals */}
+          <Stack.Screen
+            name="add-event"
+            options={{
+              presentation: 'modal',
+              animation: 'slide_from_bottom'
+            }}
+          />
+          <Stack.Screen
+            name="import"
+            options={{
+              presentation: 'transparentModal',
+              animation: 'fade'
+            }}
+          />
         </Stack>
-
       </AuthProvider>
-
     </GestureHandlerRootView>
   );
 }
