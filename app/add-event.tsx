@@ -15,7 +15,7 @@ const { width } = Dimensions.get('window');
 
 export default function AddEvent() {
   const router = useRouter();
-  
+
   // Get sync preference and tokens from global context
   const { accessToken, user, googleSyncEnabled } = useAuth();
 
@@ -31,7 +31,7 @@ export default function AddEvent() {
   const [category, setCategory] = useState("General");
   const [date, setDate] = useState(new Date());
   const [startTime, setStartTime] = useState(new Date());
-  const [endTime, setEndTime] = useState(new Date());
+  const [endTime, setEndTime] = useState(new Date(Date.now() + 60 * 60 * 1000));
   const [reminderTime, setReminderTime] = useState(new Date());
 
   const [isLoading, setIsLoading] = useState(false);
@@ -55,6 +55,14 @@ export default function AddEvent() {
       Animated.timing(slideAnim, { toValue: 0, duration: 500, useNativeDriver: true }),
     ]).start();
   }, []);
+
+  useEffect(() => {
+    // Only set default endTime if it's <= startTime (first initialization or invalid)
+    if (endTime <= startTime) {
+      const newEndTime = new Date(startTime.getTime() + 60 * 60 * 1000); // 1 hour later
+      setEndTime(newEndTime);
+    }
+  }, [startTime]);
 
   useEffect(() => {
     Animated.spring(toggleAnim, {
@@ -106,7 +114,7 @@ export default function AddEvent() {
           endTime: finalEnd,
           source: "Manual",
           category,
-          isSyncedWithGoogle: false 
+          isSyncedWithGoogle: false
         });
 
         // 2. Sync to Google if enabled in Settings
@@ -152,11 +160,19 @@ export default function AddEvent() {
     else if (pickerMode.field === 'start') setStartTime(selectedDate);
     else if (pickerMode.field === 'end') setEndTime(selectedDate);
     else if (pickerMode.field === 'reminder') setReminderTime(selectedDate);
+    else if (pickerMode.field === 'start') {
+      setStartTime(selectedDate);
+
+      // Auto-adjust end time if it's before new start
+      if (endTime <= selectedDate) {
+        setEndTime(new Date(selectedDate.getTime() + 60 * 60 * 1000));
+      }
+    }
   };
 
   const toggleTranslate = toggleAnim.interpolate({
-    inputRange:[0, 1],
-    outputRange: ['0deg', '45deg'], 
+    inputRange: [0, 1],
+    outputRange: ['0deg', '45deg'],
   });
 
   const currentPickerValue = () => {
