@@ -1,6 +1,5 @@
-import { Pressable, Text, StyleSheet } from "react-native";
 import { LinearGradient } from 'expo-linear-gradient';
-import { Colors } from "../theme/colors";
+import { Pressable, StyleSheet, Text } from "react-native";
 
 type Props = {
   title: string;

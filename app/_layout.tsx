@@ -3,7 +3,7 @@
 import { decode } from 'base-64';
 import { Stack } from "expo-router";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
-import { AuthProvider } from './context/AuthContext';
+import { AuthProvider } from '../context/AuthContext';
 
 if (typeof atob === 'undefined') {
   global.atob = decode;

@@ -10,8 +10,8 @@ import * as FileSystem from "expo-file-system";
 import * as ImagePicker from "expo-image-picker";
 
 // Project Services
-import AIService from "./services/AIService";
-import FirebaseService from "./services/FirebaseService";
+import AIService from "../services/AIService";
+import FirebaseService from "../services/FirebaseService";
 
 const { height } = Dimensions.get('window');
 

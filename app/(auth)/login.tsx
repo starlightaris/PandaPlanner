@@ -11,8 +11,8 @@ import * as WebBrowser from 'expo-web-browser';
 
 import AppInput from "../(components)/AppInput";
 import PrimaryButton from "../(components)/PrimaryButton";
-import { useAuth } from '../context/AuthContext';
-import FirebaseService from "../services/FirebaseService";
+import { useAuth } from '../../context/AuthContext';
+import FirebaseService from "../../services/FirebaseService";
 
 WebBrowser.maybeCompleteAuthSession();
 

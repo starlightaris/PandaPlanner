@@ -7,7 +7,7 @@ import { ActivityIndicator, Alert, Animated, KeyboardAvoidingView, Platform, Pre
 
 import AppInput from "../(components)/AppInput";
 import PrimaryButton from "../(components)/PrimaryButton";
-import FirebaseService from "../services/FirebaseService";
+import FirebaseService from "../../services/FirebaseService";
 
 export default function SignupScreen() {
   const router = useRouter();

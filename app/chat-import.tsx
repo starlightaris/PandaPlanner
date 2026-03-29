@@ -19,8 +19,8 @@ import {
 } from "react-native";
 
 // Project Services
-import AIService from "./services/AIService";
-import FirebaseService, { PlannerEvent } from "./services/FirebaseService";
+import AIService from "../services/AIService";
+import FirebaseService, { PlannerEvent } from "../services/FirebaseService";
 
 interface Message {
   id: string;
@@ -59,26 +59,34 @@ export default function ChatImport() {
     const userText = message.trim();
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
-    // 1. Add User Message to UI
+    // 1. Add User Message
     const userMsg: Message = {
       id: Date.now().toString(),
       text: userText,
       isUser: true,
       timestamp: new Date(),
     };
+
     setMessages(prev => [...prev, userMsg]);
     setMessage("");
     setIsProcessing(true);
 
     try {
-      // 2. Call Gemini AI Service (Natural Language Parsing)
       const extracted = await AIService.parseSchedule(userText);
 
+      // 2. Check if we actually got data
       if (extracted && extracted.length > 0) {
         setExtractedEvents(extracted);
-        
+
         const eventSummary = extracted
-          .map(e => `• ${e.title} (${new Date(e.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })})`)
+          .map(e => {
+            // e.startTime is now a Date object
+            const timeStr = e.startTime.toLocaleTimeString([], {
+              hour: '2-digit',
+              minute: '2-digit'
+            });
+            return `• ${e.title} (${timeStr})`;
+          })
           .join('\n');
 
         const botMsg: Message = {
@@ -89,17 +97,18 @@ export default function ChatImport() {
         };
         setMessages(prev => [...prev, botMsg]);
       } else {
-        const botMsg: Message = {
+        // 3. Fallback if no events found
+        const failMsg: Message = {
           id: (Date.now() + 1).toString(),
-          text: "🤔 I couldn't quite catch the event details. Could you try providing a time and a title? For example: 'Lab session tomorrow at 10am'.",
+          text: "🤔 I couldn't find any specific times or titles. Could you try being more specific? (e.g., 'Lunch tomorrow at 1pm')",
           isUser: false,
           timestamp: new Date(),
         };
-        setMessages(prev => [...prev, botMsg]);
+        setMessages(prev => [...prev, failMsg]);
       }
     } catch (error) {
-      console.error("Chat AI Error:", error);
-      Alert.alert("Panda Error", "I'm having trouble connecting to my brain right now.");
+      console.error("Chat UI Error:", error);
+      Alert.alert("Panda Error", "I lost my connection to the bamboo forest.");
     } finally {
       setIsProcessing(false);
     }

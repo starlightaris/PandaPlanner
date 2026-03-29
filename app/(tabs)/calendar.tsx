@@ -7,8 +7,8 @@ import { Alert, Animated, Pressable, RefreshControl, ScrollView, StyleSheet, Tex
 import { Calendar } from "react-native-calendars";
 
 import EventCard from "../(components)/EventCard";
-import { useAuth } from '../context/AuthContext';
-import FirebaseService from "../services/FirebaseService";
+import { useAuth } from '../../context/AuthContext';
+import FirebaseService from "../../services/FirebaseService";
 
 export default function CalendarScreen() {
   const router = useRouter();

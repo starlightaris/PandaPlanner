@@ -1,10 +1,10 @@
 import { Ionicons } from "@expo/vector-icons";
-import { Tabs, useRouter } from "expo-router";
-import { Pressable, StyleSheet, View, Animated, Dimensions, Text } from "react-native";
-import { useState, useRef, useEffect } from "react";
-import { LinearGradient } from 'expo-linear-gradient';
-import { Colors } from "../theme/colors";
 import * as Haptics from 'expo-haptics';
+import { LinearGradient } from 'expo-linear-gradient';
+import { Tabs, useRouter } from "expo-router";
+import { useEffect, useRef, useState } from "react";
+import { Animated, Dimensions, Pressable, StyleSheet, Text, View } from "react-native";
+import { Colors } from "../../theme/colors";
 
 const { width } = Dimensions.get('window');
 
