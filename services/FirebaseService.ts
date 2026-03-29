@@ -1,25 +1,27 @@
 import {
-    createUserWithEmailAndPassword,
-    GoogleAuthProvider,
-    signInWithCredential,
-    signInWithEmailAndPassword,
-    signOut,
-    User
+  createUserWithEmailAndPassword,
+  GoogleAuthProvider,
+  signInWithCredential,
+  signInWithEmailAndPassword,
+  signOut,
+  User
 } from 'firebase/auth';
 import {
-    addDoc,
-    collection,
-    deleteDoc,
-    doc,
-    getDocs,
-    orderBy,
-    query,
-    serverTimestamp,
-    setDoc,
-    Timestamp,
-    updateDoc
+  addDoc,
+  collection,
+  deleteDoc,
+  doc,
+  getDocs,
+  orderBy,
+  query,
+  serverTimestamp,
+  setDoc,
+  Timestamp,
+  updateDoc
 } from 'firebase/firestore';
 import { auth, db } from '../firebaseConfig';
+
+export { auth };
 
 export interface PlannerEvent {
   id?: string;
