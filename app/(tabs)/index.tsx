@@ -1,8 +1,9 @@
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useRouter } from "expo-router";
+import { useFocusEffect, useRouter } from "expo-router";
 import { useCallback, useEffect, useRef, useState } from "react";
+
 import { Alert, Animated, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
 
 // --- PROJECT IMPORTS ---
@@ -16,10 +17,10 @@ export default function Home() {
   const { accessToken, user, loading } = useAuth();
 
   useEffect(() => {
-      if (!loading && !user) {
-        router.replace("/(auth)/login");
-      }
-    }, [user, loading]);
+    if (!loading && !user) {
+      router.replace("/(auth)/login");
+    }
+  }, [user, loading]);
 
   const [refreshing, setRefreshing] = useState(false);
   const [events, setEvents] = useState<any[]>([]);
@@ -86,9 +87,12 @@ export default function Home() {
     }
   }, [accessToken]);
 
-  useEffect(() => {
-    fetchAllEvents();
-  }, [fetchAllEvents]);
+  // Refresh data every time this screen comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      fetchAllEvents();
+    }, [fetchAllEvents])
+  );
 
   const getConflictedIds = () => {
     const conflicted = new Set<string>();
@@ -152,6 +156,15 @@ export default function Home() {
     return "Good Evening";
   };
 
+  const getSuggestionStyle = (type: Suggestion['type']) => {
+    switch (type) {
+      case 'DEEP_WORK': return { tag: '#FF8787', card: '#FF878715', border: '#FF878730' };
+      case 'ACADEMIC': return { tag: '#9BD8EC', card: '#9BD8EC15', border: '#9BD8EC30' };
+      case 'REST': return { tag: '#A8D5A2', card: '#A8D5A215', border: '#A8D5A230' };
+      case 'RECURRING': return { tag: '#FFB347', card: '#FFB34715', border: '#FFB34730' };
+    }
+  };
+
   return (
     <LinearGradient colors={['#FFFFFF', '#FFFBF5']} style={styles.container}>
       <View style={styles.decorativeBlob1} />
@@ -196,7 +209,7 @@ export default function Home() {
         </View>
 
         {/* --- SMART SUGGESTIONS (ML FEED) --- */}
-        {suggestions.length > 0 && selectedFilter !== 'upcoming' && (
+        {suggestions.length > 0 && (
           <View style={styles.suggestionSection}>
             <View style={styles.sectionHeader}>
               <View style={styles.sectionTitleContainer}>
@@ -209,20 +222,23 @@ export default function Home() {
               showsHorizontalScrollIndicator={false}
               contentContainerStyle={styles.suggestionScroll}
             >
-              {suggestions.map((item) => (
-                <Pressable
-                  key={item.id}
-                  style={styles.suggestionCard}
-                  onPress={() => Alert.alert("ML Insight", `This slot has a ${(item.confidenceScore * 100).toFixed(0)}% productivity rating based on your current schedule.`)}
-                >
-                  <View style={styles.suggestionTag}>
-                    <Text style={styles.suggestionTagText}>{item.type.replace('_', ' ')}</Text>
-                  </View>
-                  <Text style={styles.suggestionTitle}>{item.title}</Text>
-                  <Text style={styles.suggestionTime}>{item.startTime} - {item.endTime}</Text>
-                  <Text style={styles.suggestionDesc} numberOfLines={2}>{item.description}</Text>
-                </Pressable>
-              ))}
+              {suggestions.map((item) => {
+                const s = getSuggestionStyle(item.type);
+                return (
+                  <Pressable
+                    key={item.id}
+                    style={[styles.suggestionCard, { backgroundColor: s.card, borderColor: s.border }]}
+                    onPress={() => Alert.alert("ML Insight", `This slot has a ${(item.confidenceScore * 100).toFixed(0)}% productivity rating based on your current schedule.`)}
+                  >
+                    <View style={[styles.suggestionTag, { backgroundColor: s.tag }]}>
+                      <Text style={styles.suggestionTagText}>{item.type.replace('_', ' ')}</Text>
+                    </View>
+                    <Text style={styles.suggestionTitle}>{item.title}</Text>
+                    <Text style={styles.suggestionTime}>{item.startTime} - {item.endTime}</Text>
+                    <Text style={styles.suggestionDesc} numberOfLines={2}>{item.description}</Text>
+                  </Pressable>
+                );
+              })}
             </ScrollView>
           </View>
         )}
