@@ -1,12 +1,11 @@
-import React, { useState } from "react";
-import { View, Text, StyleSheet, Pressable, ScrollView, Switch, Modal, Alert, Platform } from "react-native";
-import { useRouter } from "expo-router";
-import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from 'expo-haptics';
+import { LinearGradient } from 'expo-linear-gradient';
+import { useRouter } from "expo-router";
+import React, { useState } from "react";
+import { Alert, Modal, Pressable, ScrollView, StyleSheet, Switch, Text, View } from "react-native";
 
 // --- YOUR IMPORTS ---
-import { Colors } from "../theme/colors";
 import { useAuth } from '../context/AuthContext';
 import FirebaseService from "../services/FirebaseService";
 
@@ -14,11 +13,10 @@ export default function SettingsScreen() {
   const router = useRouter();
 
   // 1. Access Global Auth State
-  const { setAccessToken, setUser, user } = useAuth();
+  const { setAccessToken, setUser, user, googleSyncEnabled, setGoogleSyncEnabled } = useAuth();
 
   // 2. UI State
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
-  const [googleSyncEnabled, setGoogleSyncEnabled] = useState(true);
   const [darkModeEnabled, setDarkModeEnabled] = useState(false);
   const [logoutModalVisible, setLogoutModalVisible] = useState(false);
 
@@ -107,9 +105,9 @@ export default function SettingsScreen() {
             description="Get panda reminders"
             type="toggle"
             value={notificationsEnabled}
-            onValueChange={(val) => {
-                setNotificationsEnabled(val);
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            onValueChange={(val:boolean) => {
+              setNotificationsEnabled(val);
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
             }}
           />
 
@@ -118,11 +116,11 @@ export default function SettingsScreen() {
             title="Google Calendar Sync"
             description="Sync with your Google Calendar"
             type="toggle"
-            value={googleSyncEnabled}
-            onValueChange={(val) => {
-                setGoogleSyncEnabled(val);
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                if(!val) Alert.alert("Sync Off", "Events won't be sent to Google.");
+            value={googleSyncEnabled} // Uses global value
+            onValueChange={(val: boolean) => {
+              setGoogleSyncEnabled(val); // Updates global value
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              if (!val) Alert.alert("Sync Off", "Events won't be sent to Google.");
             }}
           />
 
@@ -132,10 +130,10 @@ export default function SettingsScreen() {
             description="Easy on the eyes"
             type="toggle"
             value={darkModeEnabled}
-            onValueChange={(val) => {
-                setDarkModeEnabled(val);
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                Alert.alert("🌙 Coming Soon", "Dark mode is still being polished by the pandas!");
+            onValueChange={(val:boolean) => {
+              setDarkModeEnabled(val);
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              Alert.alert("🌙 Coming Soon", "Dark mode is still being polished by the pandas!");
             }}
           />
         </View>

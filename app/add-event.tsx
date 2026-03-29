@@ -4,26 +4,20 @@ import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from "expo-router";
 import { useEffect, useRef, useState } from "react";
-import {
-  ActivityIndicator,
-  Alert,
-  Animated, Dimensions,
-  Modal,
-  Platform,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View
-} from "react-native";
+import { ActivityIndicator, Alert, Animated, Dimensions, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 
 import AppInput from "./(components)/AppInput";
+import { useAuth } from "./context/AuthContext";
 import FirebaseService from "./services/FirebaseService";
+import { GoogleService } from "./services/GoogleService";
 
 const { width } = Dimensions.get('window');
 
 export default function AddEvent() {
   const router = useRouter();
+  
+  // Get sync preference and tokens from global context
+  const { accessToken, user, googleSyncEnabled } = useAuth();
 
   // Animations
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -42,11 +36,18 @@ export default function AddEvent() {
 
   const [isLoading, setIsLoading] = useState(false);
   const [menuVisible, setMenuVisible] = useState(false);
-  const [pickerMode, setPickerMode] = useState<{visible: boolean, type: 'date' | 'time', field: string}>({
+  const [pickerMode, setPickerMode] = useState<{ visible: boolean, type: 'date' | 'time', field: string }>({
     visible: false,
     type: 'date',
     field: ''
   });
+
+  const CATEGORIES = [
+    { id: 'General', label: 'General', color: '#FF8787', icon: 'apps-outline' },
+    { id: 'Home', label: 'Home', color: '#9BD8EC', icon: 'home-outline' },
+    { id: 'Work', label: 'Work', color: '#FFF7B2', icon: 'briefcase-outline' },
+    { id: 'Personal', label: 'Personal', color: '#C5EBAA', icon: 'person-outline' },
+  ];
 
   useEffect(() => {
     Animated.parallel([
@@ -64,11 +65,6 @@ export default function AddEvent() {
     }).start();
   }, [isReminder]);
 
-  const toggleSwitch = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    setIsReminder(!isReminder);
-  };
-
   const combineDateAndTime = (baseDate: Date, timeValue: Date) => {
     const combined = new Date(baseDate);
     combined.setHours(timeValue.getHours(), timeValue.getMinutes(), 0, 0);
@@ -84,39 +80,60 @@ export default function AddEvent() {
 
     setIsLoading(true);
     try {
+      const finalStart = combineDateAndTime(date, startTime);
+      const finalEnd = combineDateAndTime(date, endTime);
+
       if (isReminder) {
         const finalReminderTime = combineDateAndTime(date, reminderTime);
-        await FirebaseService.saveReminder({
+        await FirebaseService.addReminder({
           title,
-          location: location || "No Location",
-          reminderTime: finalReminderTime,
-          isCompleted: false,
-          category
+          triggerTime: finalReminderTime,
+          isNotified: false,
+          category: category as any
         });
       } else {
-        const finalStart = combineDateAndTime(date, startTime);
-        const finalEnd = combineDateAndTime(date, endTime);
-
         if (finalEnd <= finalStart) {
           Alert.alert("🐼 Time Trouble!", "End time must be after start time");
           setIsLoading(false);
           return;
         }
 
-        await FirebaseService.saveEvent({
+        // 1. Save to Firebase 
+        const eventId = await FirebaseService.addEvent({
           title,
           location: location || "No Location",
           startTime: finalStart,
           endTime: finalEnd,
           source: "Manual",
-          category
+          category,
+          isSyncedWithGoogle: false 
         });
+
+        // 2. Sync to Google if enabled in Settings
+        if (googleSyncEnabled && accessToken && eventId) {
+          try {
+            const googleResult = await GoogleService.saveEvent({
+              title,
+              location,
+              startTime: finalStart.toISOString(),
+              endTime: finalEnd.toISOString()
+            }, accessToken);
+
+            if (googleResult.id) {
+              // Update the Firebase doc with the Google Event ID
+              await FirebaseService.updateEventSyncStatus(eventId, googleResult.id);
+            }
+          } catch (e) {
+            console.warn("Google Sync failed, but event saved locally.");
+          }
+        }
       }
+
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       router.back();
     } catch (err) {
-      console.error("Save error:", err);
-      Alert.alert("🐼 Error", "Failed to save. Check your connection.");
+      console.error("Save Failed:", err);
+      Alert.alert("🐼 Error", "Could not save. Please try again.");
     } finally {
       setIsLoading(false);
     }
@@ -137,9 +154,9 @@ export default function AddEvent() {
     else if (pickerMode.field === 'reminder') setReminderTime(selectedDate);
   };
 
-  const togglePosition = toggleAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: [4, (width * 0.9) * 0.5],
+  const toggleTranslate = toggleAnim.interpolate({
+    inputRange:[0, 1],
+    outputRange: ['0deg', '45deg'], 
   });
 
   const currentPickerValue = () => {
@@ -158,13 +175,13 @@ export default function AddEvent() {
           </Pressable>
           <Text style={styles.headerTitle}>{isReminder ? "New Reminder" : "New Event"}</Text>
           <Pressable onPress={() => setMenuVisible(true)} style={styles.headerButton}>
-             <Ionicons name="ellipsis-horizontal" size={24} color="#5C5C5C" />
+            <Ionicons name="ellipsis-horizontal" size={24} color="#5C5C5C" />
           </Pressable>
         </View>
 
         <View style={styles.toggleContainer}>
           <View style={styles.toggleBackground}>
-            <Animated.View style={[styles.toggleThumb, { transform: [{ translateX: togglePosition }] }]} />
+            <Animated.View style={[styles.toggleThumb, { transform: [{ translateX: toggleTranslate }] }]} />
             <Pressable style={styles.toggleOption} onPress={() => setIsReminder(false)}>
               <Text style={[styles.toggleText, !isReminder && styles.toggleTextActive]}>📅 Event</Text>
             </Pressable>
@@ -177,20 +194,48 @@ export default function AddEvent() {
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
           <View style={styles.card}>
             <Text style={styles.cardTitle}>TITLE</Text>
-            <AppInput 
-              placeholder={isReminder ? "Remind me to..." : "Event name"} 
-              value={title} 
-              onChangeText={setTitle} 
+            <AppInput
+              placeholder={isReminder ? "Remind me to..." : "Event name"}
+              value={title}
+              onChangeText={setTitle}
               style={styles.input}
             />
           </View>
 
           <View style={styles.card}>
+            <Text style={styles.cardTitle}>CATEGORY</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.categoryScroll}>
+              {CATEGORIES.map((cat) => (
+                <Pressable
+                  key={cat.id}
+                  onPress={() => {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    setCategory(cat.id);
+                  }}
+                  style={[
+                    styles.categoryBadge,
+                    category === cat.id && { backgroundColor: cat.color + '40', borderColor: cat.color }
+                  ]}
+                >
+                  <Ionicons
+                    name={cat.icon as any}
+                    size={16}
+                    color={category === cat.id ? '#3A3A3A' : '#BDBDBD'}
+                  />
+                  <Text style={[styles.categoryText, category === cat.id && styles.categoryTextActive]}>
+                    {cat.label}
+                  </Text>
+                </Pressable>
+              ))}
+            </ScrollView>
+          </View>
+
+          <View style={styles.card}>
             <Text style={styles.cardTitle}>LOCATION</Text>
-            <AppInput 
-              placeholder="Add location" 
-              value={location} 
-              onChangeText={setLocation} 
+            <AppInput
+              placeholder="Add location"
+              value={location}
+              onChangeText={setLocation}
               style={styles.input}
             />
           </View>
@@ -320,5 +365,9 @@ const styles = StyleSheet.create({
   menuHeader: { paddingHorizontal: 12, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#F0F0F0' },
   menuHeaderText: { fontSize: 13, fontWeight: '600', color: '#FF8787' },
   menuItem: { flexDirection: "row", alignItems: "center", padding: 12, borderRadius: 12 },
-  menuText: { marginLeft: 12, fontSize: 15, color: '#5C5C5C' }
+  menuText: { marginLeft: 12, fontSize: 15, color: '#5C5C5C' },
+  categoryScroll: { marginTop: 8, flexDirection: 'row' },
+  categoryBadge: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 20, borderWidth: 1, borderColor: '#F0F0F0', marginRight: 10, gap: 6, backgroundColor: '#FAFAFA' },
+  categoryText: { fontSize: 12, color: '#8E8E93', fontWeight: '600' },
+  categoryTextActive: { color: '#3A3A3A' },
 });

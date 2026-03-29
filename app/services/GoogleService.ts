@@ -36,5 +36,13 @@ export const GoogleService = {
       }),
     });
     return response.json();
+  },
+
+  fetchUpcomingEvents: async (token: string) => {
+    const response = await fetch(`${CALENDAR_API_URL}?timeMin=${new Date().toISOString()}`, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    const data = await response.json();
+    return data.items; // These are the events to import
   }
 };

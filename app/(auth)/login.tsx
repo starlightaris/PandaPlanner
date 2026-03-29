@@ -1,20 +1,19 @@
-import {signInWithCredential,GoogleAuthProvider} from "firebase/auth";
-import { View, Text, StyleSheet, Pressable, Alert, ActivityIndicator, Animated, KeyboardAvoidingView, Platform, ScrollView } from "react-native";
-import { useRouter } from "expo-router";
-import { useState, useEffect, useRef } from "react";
 import { Ionicons } from "@expo/vector-icons";
-import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
+import { LinearGradient } from 'expo-linear-gradient';
+import { useRouter } from "expo-router";
+import { GoogleAuthProvider, signInWithCredential } from "firebase/auth";
+import { useEffect, useRef, useState } from "react";
+import { ActivityIndicator, Alert, Animated, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 
+import * as AuthSession from 'expo-auth-session';
 import * as Google from 'expo-auth-session/providers/google';
 import * as WebBrowser from 'expo-web-browser';
-import * as AuthSession from 'expo-auth-session';
 
 import AppInput from "../(components)/AppInput";
 import PrimaryButton from "../(components)/PrimaryButton";
-import { Colors } from "../theme/colors";
-import FirebaseService, { auth } from "../services/FirebaseService";
 import { useAuth } from '../context/AuthContext';
+import FirebaseService, { auth } from "../services/FirebaseService";
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -58,14 +57,12 @@ export default function LoginScreen() {
     iosClientId: '1015755840124-umd5c4l4sqlf2ufhla4nm4kvqg23bhoa.apps.googleusercontent.com',
     androidClientId: '1015755840124-gr1nfvsb958vl28rqt207g0keupupdvp.apps.googleusercontent.com',
     webClientId: '1015755840124-gn1ob4kv3gpt99dnthfvfacuh50af14b.apps.googleusercontent.com',
-    useProxy: true,
     responseType: 'token id_token',
     usePKCE: false,
     extraParams: {
         nonce: 'PandaPlannerNonce2026' // This satisfies Google's security requirement
       },
     redirectUri: AuthSession.makeRedirectUri({
-        useProxy: true,
         scheme: 'pandaplanner',
     }),
     scopes: [
@@ -85,24 +82,34 @@ export default function LoginScreen() {
 
 useEffect(() => {
   if (response?.type === 'success') {
-    // 1. Get the token safely
     const { id_token, access_token } = response.params;
 
-    // 2. LOG IT to see what's actually happening
     console.log("Tokens received:", { id_token: !!id_token, access_token: !!access_token });
 
     if (id_token) {
       const credential = GoogleAuthProvider.credential(id_token);
+      
+      setIsLoading(true);
       signInWithCredential(auth, credential)
-        .then((userCredential) => {
+        .then(async (userCredential) => {
           console.log("Firebase Auth Success!");
+          
+          // Set the user and token in your context
           setUser(userCredential.user);
-          setAccessToken(access_token);
+          setAccessToken(access_token || null);
+          
+          // Optional: Sync user data to Firestore
+          await FirebaseService.loginWithGoogle(id_token);
+
           router.replace("/(tabs)");
         })
-        .catch((error) => console.error("Firebase Auth Error:", error));
+        .catch((error) => {
+          console.error("Firebase Auth Error:", error);
+          Alert.alert("Login Failed", "Could not connect to Firebase.");
+        })
+        .finally(() => setIsLoading(false));
     } else {
-      console.error("No ID Token found in response. Check your Google Cloud Console settings.");
+      console.error("No ID Token found");
     }
   }
 }, [response]);
