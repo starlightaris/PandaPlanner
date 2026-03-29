@@ -11,6 +11,7 @@ import {
   collection,
   deleteDoc,
   doc,
+  getDoc,
   getDocs,
   orderBy,
   query,
@@ -69,14 +70,27 @@ class FirebaseService {
     const credential = GoogleAuthProvider.credential(idToken);
     const result = await signInWithCredential(auth, credential);
     const user = result.user;
-    await setDoc(doc(db, 'users', user.uid), {
-      uid: user.uid,
-      email: user.email,
-      displayName: user.displayName,
-      photoURL: user.photoURL,
-      lastLogin: serverTimestamp(),
-      provider: 'google.com',
-    }, { merge: true });
+
+    const userRef = doc(db, 'users', user.uid);
+
+    // Check if user doc already exists (returning user vs new user)
+    const userSnap = await getDoc(userRef);
+
+    if (!userSnap.exists()) {
+      // New Google user — create full document like signUp does
+      await setDoc(userRef, {
+        uid: user.uid,
+        email: user.email,
+        displayName: user.displayName,
+        photoURL: user.photoURL,
+        createdAt: serverTimestamp(),
+        lastLogin: serverTimestamp(),
+        provider: 'google.com',
+      });
+    } else {
+      // Returning user — just update lastLogin
+      await updateDoc(userRef, { lastLogin: serverTimestamp() });
+    }
     return user;
   }
 
