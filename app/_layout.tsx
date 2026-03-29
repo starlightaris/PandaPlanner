@@ -1,9 +1,11 @@
 //import * as tf from '@tensorflow/tfjs';
 //import '@tensorflow/tfjs-react-native';
+
 import { decode } from 'base-64';
 import { Stack } from "expo-router";
+import { useEffect, useState } from "react";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
-import { AuthProvider } from '../context/AuthContext';
+import { AuthProvider } from './context/AuthContext';
 
 if (typeof atob === 'undefined') {
   global.atob = decode;
@@ -15,17 +17,48 @@ if (typeof atob === 'undefined') {
 });*/
 
 export default function RootLayout() {
+
+  const [isReady, setIsReady] = useState(false);
+
+  useEffect(() => {
+    setIsReady(true);
+  }, []);
+
+  if (!isReady) {
+    return null;
+  }
+
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-
       <AuthProvider>
         <Stack screenOptions={{ headerShown: false }}>
+
+          {/* Index handles the initial routing logic */}
           <Stack.Screen name="index" />
-          <Stack.Screen name="add-event" options={{ presentation: 'modal' }} />
+
+          {/* Main App Groups */}
+          <Stack.Screen name="(auth)" />
+          <Stack.Screen name="(tabs)" />
+
+          {/* Modals */}
+          <Stack.Screen
+            name="add-event"
+            options={{
+              presentation: 'modal',
+              animation: 'slide_from_bottom'
+            }}
+          />
+
+          <Stack.Screen
+            name="import"
+            options={{
+              presentation: 'transparentModal',
+              animation: 'fade'
+            }}
+          />
+
         </Stack>
-
       </AuthProvider>
-
     </GestureHandlerRootView>
   );
 }

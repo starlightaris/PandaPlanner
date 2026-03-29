@@ -13,7 +13,13 @@ import MLService, { Suggestion } from "../../services/MLService";
 
 export default function Home() {
   const router = useRouter();
-  const { accessToken, user } = useAuth();
+  const { accessToken, user, loading } = useAuth();
+
+  useEffect(() => {
+      if (!loading && !user) {
+        router.replace("/(auth)/login");
+      }
+    }, [user, loading]);
 
   const [refreshing, setRefreshing] = useState(false);
   const [events, setEvents] = useState<any[]>([]);
