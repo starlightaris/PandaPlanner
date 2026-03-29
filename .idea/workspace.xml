@@ -4,7 +4,9 @@
     <option name="autoReloadType" value="NONE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="2da5ed9d-ae6b-466f-b89c-6fa81a4c350b" name="Changes" comment="sync" />
+    <list default="true" id="2da5ed9d-ae6b-466f-b89c-6fa81a4c350b" name="Changes" comment="sync">
+      <change beforePath="$PROJECT_DIR$/firebaseConfig.ts" beforeDir="false" afterPath="$PROJECT_DIR$/firebaseConfig.ts" afterDir="false" />
+    </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
