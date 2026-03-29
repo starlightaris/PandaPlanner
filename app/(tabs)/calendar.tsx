@@ -19,7 +19,7 @@ export default function CalendarScreen() {
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   const [refreshing, setRefreshing] = useState(false);
   const [viewMode, setViewMode] = useState<'day' | 'week' | 'month'>('month');
-  
+
   // Animations
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(30)).current;
@@ -70,7 +70,7 @@ export default function CalendarScreen() {
   const getConflictedIds = useCallback(() => {
     const conflicted = new Set<string>();
     const eventsByDate: { [key: string]: any[] } = {};
-    
+
     events.forEach(e => {
       if (!eventsByDate[e.date]) eventsByDate[e.date] = [];
       eventsByDate[e.date].push(e);
@@ -93,22 +93,34 @@ export default function CalendarScreen() {
 
   const conflicts = getConflictedIds();
 
-  const handleResolveConflict = (eventId: string, title: string) => {
+  const handleResolveConflict = (eventId: string, title: string, source: string) => {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+
+    // Logic check: We can only delete/edit events saved in our App (Firestore)
+    const isAppEvent = source === "App";
+
     Alert.alert(
       "Resolve Schedule Conflict",
       `"${title}" overlaps with another event. How would you like Panda to handle this?`,
       [
         { text: "Keep Both", style: "cancel" },
-        { text: "Reschedule", onPress: () => router.push({ pathname: "/add-event", params: { id: eventId, edit: "true" } as any }) },
-        { 
-          text: "Remove Event", 
-          style: "destructive",
-          onPress: async () => {
-            await FirebaseService.deleteEvent(eventId);
-            onRefresh();
+        // Only show Edit/Delete for Firestore events
+        ...(isAppEvent ? [
+          {
+            text: "Reschedule",
+            onPress: () => router.push({ pathname: "/add-event", params: { id: eventId, edit: "true" } as any })
+          },
+          {
+            text: "Remove Event",
+            style: "destructive" as const,
+            onPress: async () => {
+              await FirebaseService.deleteEvent(eventId);
+              onRefresh();
+            }
           }
-        }
+        ] : [
+          { text: "View in Google", onPress: () => Alert.alert("Note", "Please manage Google Calendar events in the Google app.") }
+        ])
       ]
     );
   };
@@ -185,11 +197,11 @@ export default function CalendarScreen() {
         </View>
         <View style={styles.eventsList}>
           {events.filter(e => e.date === selectedDate).map(event => (
-            <EventCard 
-                key={event.id} 
-                {...event} 
-                hasConflict={conflicts.has(event.id)} 
-                onPress={() => conflicts.has(event.id) && handleResolveConflict(event.id, event.title)}
+            <EventCard
+              key={event.id}
+              {...event}
+              hasConflict={conflicts.has(event.id)}
+              onPress={() => conflicts.has(event.id) && handleResolveConflict(event.id, event.title, event.source)}
             />
           ))}
         </View>
@@ -200,7 +212,7 @@ export default function CalendarScreen() {
   return (
     <LinearGradient colors={['#FFFFFF', '#FFFBF5']} style={styles.container}>
       <Animated.View style={[styles.content, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
-        
+
         <View style={styles.header}>
           <Pressable onPress={() => router.back()} style={styles.headerButton}>
             <Ionicons name="arrow-back" size={24} color="#5C5C5C" />
@@ -225,7 +237,7 @@ export default function CalendarScreen() {
           ))}
         </View>
 
-        <ScrollView 
+        <ScrollView
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#FF8787" />}
           contentContainerStyle={{ paddingBottom: 40 }}
         >
@@ -245,11 +257,11 @@ export default function CalendarScreen() {
                 {new Date(selectedDate).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
               </Text>
               {events.filter(e => e.date === selectedDate).map(event => (
-                <EventCard 
-                    key={event.id} 
-                    {...event} 
-                    hasConflict={conflicts.has(event.id)} 
-                    onPress={() => conflicts.has(event.id) && handleResolveConflict(event.id, event.title)}
+                <EventCard
+                  key={event.id}
+                  {...event}
+                  hasConflict={conflicts.has(event.id)}
+                  onPress={() => conflicts.has(event.id) && handleResolveConflict(event.id, event.title, event.source)}
                 />
               ))}
               {events.filter(e => e.date === selectedDate).length === 0 && (

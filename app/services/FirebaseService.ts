@@ -34,10 +34,6 @@ export interface PlannerEvent {
 class FirebaseService {
   // --- AUTH METHODS ---
 
-  /**
-   * Standard Email/Password Signup
-   * Creates Auth record AND initializes Firestore document
-   */
   async signUp(email: string, password: string): Promise<User> {
     const credential = await createUserWithEmailAndPassword(auth, email, password);
     const user = credential.user;
@@ -53,10 +49,6 @@ class FirebaseService {
     return user;
   }
 
-  /**
-   * Standard Email/Password Login
-   * Updates the lastLogin timestamp in Firestore
-   */
   async logIn(email: string, password: string): Promise<User> {
     const credential = await signInWithEmailAndPassword(auth, email, password);
     const userRef = doc(db, 'users', credential.user.uid);
@@ -68,21 +60,16 @@ class FirebaseService {
     return credential.user;
   }
 
-  /**
-   * Google Authentication
-   * Handles first-time account creation AND returning user sync
-   */
   async loginWithGoogle(idToken: string): Promise<User> {
     const credential = GoogleAuthProvider.credential(idToken);
     const result = await signInWithCredential(auth, credential);
     const user = result.user;
     
-    // Using { merge: true } to create if missing, or update if exists
     await setDoc(doc(db, 'users', user.uid), {
         uid: user.uid,
         email: user.email,
-        displayName: user.displayName, // Personalized greeting for the UI
-        photoURL: user.photoURL,       // Profile picture sync
+        displayName: user.displayName,
+        photoURL: user.photoURL,
         lastLogin: serverTimestamp(),
         provider: 'google.com',
     }, { merge: true });
@@ -97,8 +84,23 @@ class FirebaseService {
   // --- FIRESTORE METHODS ---
 
   /**
-   * Saves an event to the user's private schedule sub-collection
+   * Checks if a new time slot overlaps with any existing events in Firestore
    */
+  async checkConflict(startTime: Date, endTime: Date): Promise<boolean> {
+    try {
+      const existingEvents = await this.getUserEvents();
+      return existingEvents.some(event => {
+        const existingStart = new Date(event.startTime);
+        const existingEnd = new Date(event.endTime);
+        // Overlap logic: (NewStart < ExistingEnd) AND (NewEnd > ExistingStart)
+        return (startTime < existingEnd && endTime > existingStart);
+      });
+    } catch (error) {
+      console.error("Conflict Check Error:", error);
+      return false; 
+    }
+  }
+
   async saveEvent(eventData: PlannerEvent) {
     const userId = auth.currentUser?.uid;
     if (!userId) throw new Error("No authenticated user found");
@@ -134,9 +136,6 @@ class FirebaseService {
     });
   }
 
-  /**
-   * Fetches all events for the current user, sorted by start time
-   */
   async getUserEvents(): Promise<PlannerEvent[]> {
     const userId = auth.currentUser?.uid;
     if (!userId) return [];

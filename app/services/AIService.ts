@@ -55,7 +55,9 @@ class AIService {
 
       const result = await this.model.generateContent({ contents });
       const response = result.response;
-      const parsedData = JSON.parse(response.text());
+      let text = response.text();
+      text = text.replace(/```json/g, "").replace(/```/g, "").trim();
+      const parsedData = JSON.parse(text);
 
       // Map the AI response to your Firebase-ready PlannerEvent structure 
       return parsedData.map((event: any) => ({
