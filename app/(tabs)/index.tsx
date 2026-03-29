@@ -1,8 +1,9 @@
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useRouter } from "expo-router";
+import { useFocusEffect, useRouter } from "expo-router";
 import { useCallback, useEffect, useRef, useState } from "react";
+
 import { Alert, Animated, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
 
 // --- PROJECT IMPORTS ---
@@ -16,10 +17,10 @@ export default function Home() {
   const { accessToken, user, loading } = useAuth();
 
   useEffect(() => {
-      if (!loading && !user) {
-        router.replace("/(auth)/login");
-      }
-    }, [user, loading]);
+    if (!loading && !user) {
+      router.replace("/(auth)/login");
+    }
+  }, [user, loading]);
 
   const [refreshing, setRefreshing] = useState(false);
   const [events, setEvents] = useState<any[]>([]);
@@ -86,9 +87,12 @@ export default function Home() {
     }
   }, [accessToken]);
 
-  useEffect(() => {
-    fetchAllEvents();
-  }, [fetchAllEvents]);
+  // Refresh data every time this screen comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      fetchAllEvents();
+    }, [fetchAllEvents])
+  );
 
   const getConflictedIds = () => {
     const conflicted = new Set<string>();
