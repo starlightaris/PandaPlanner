@@ -10,8 +10,8 @@ import * as FileSystem from "expo-file-system";
 import * as ImagePicker from "expo-image-picker";
 
 // Project Services
-import AIService from "./services/AIService";
-import FirebaseService from "./services/FirebaseService";
+import AIService from "../services/AIService";
+import FirebaseService from "../services/FirebaseService";
 
 const { height } = Dimensions.get('window');
 
@@ -44,12 +44,12 @@ export default function ImportScreen({ visible = true, onClose, onImportComplete
   /**
    * Universal AI Processing Logic
    * Sends base64 data to Gemini and saves resulting events to Firestore
+   * Includes conflict detection logic.
    */
   const handleAIProcessing = async (base64: string, mimeType: string, label: string) => {
     try {
       setImporting(label.toLowerCase());
       
-      // 1. Multimodal AI Extraction
       const parsedEvents = await AIService.parseSchedule("Extract all events", { 
         base64, 
         mimeType 
@@ -59,17 +59,56 @@ export default function ImportScreen({ visible = true, onClose, onImportComplete
         throw new Error("Panda couldn't find any schedule data in this file.");
       }
 
-      // 2. Storage Stage (Firestore)
       let successCount = 0;
+      let skippedCount = 0;
+
       for (const event of parsedEvents) {
+        // --- CONFLICT CHECK ---
+        const hasConflict = await FirebaseService.checkConflict(
+          new Date(event.startTime), 
+          new Date(event.endTime)
+        );
+
+        if (hasConflict) {
+          const userChoice = await new Promise((resolve) => {
+            Alert.alert(
+              "Schedule Conflict 🐼",
+              `"${event.title}" overlaps with an existing event. What should Panda do?`,
+              [
+                { 
+                  text: "Skip this one", 
+                  onPress: () => resolve("skip"), 
+                  style: "cancel" 
+                },
+                { 
+                  text: "Add Anyway", 
+                  onPress: () => resolve("add") 
+                }
+              ],
+              { cancelable: false }
+            );
+          });
+
+          if (userChoice === "skip") {
+            skippedCount++;
+            continue; // Skip saving and move to the next event
+          }
+        }
+
+        // Save event (either no conflict or user chose "Add Anyway")
         await FirebaseService.saveEvent(event);
         successCount++;
       }
 
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      
+      const statusMsg = skippedCount > 0 
+        ? `Successfully imported ${successCount} events. ${skippedCount} were skipped.`
+        : `Successfully imported ${successCount} events from your ${label}.`;
+
       Alert.alert(
         "🐼 Panda Success!",
-        `Successfully imported ${successCount} events from your ${label}.`,
+        statusMsg,
         [{ text: "Great!", onPress: () => {
           onImportComplete?.();
           handleClose();
@@ -106,10 +145,9 @@ export default function ImportScreen({ visible = true, onClose, onImportComplete
     if (!result.canceled) {
       const asset = result.assets[0];
       const base64 = await FileSystem.readAsStringAsync(asset.uri, {
-        encoding: (FileSystem as any).EncodingType?.Base64 || 'base64',
+        encoding: FileSystem.EncodingType.Base64,
       });
       
-      // Standardize mimeTypes for Gemini API
       const mimeType = label === "CSV" ? "text/csv" : "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
       await handleAIProcessing(base64, mimeType, label);
     }
@@ -170,7 +208,7 @@ export default function ImportScreen({ visible = true, onClose, onImportComplete
 
             <View style={styles.infoCard}>
               <Text style={styles.infoText}>
-                Supported formats: JPG, PNG, CSV, and Excel. Panda uses AI to ensure your academic year is aligned to 2026.
+                Panda checks for conflicts automatically. If an overlap is found, you'll be asked whether to skip or double-book.
               </Text>
             </View>
 

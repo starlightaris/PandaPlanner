@@ -7,13 +7,14 @@ import { useEffect, useRef, useState } from "react";
 import { ActivityIndicator, Alert, Animated, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 
 import * as AuthSession from 'expo-auth-session';
+import * as AuthSession from 'expo-auth-session';
 import * as Google from 'expo-auth-session/providers/google';
 import * as WebBrowser from 'expo-web-browser';
 
 import AppInput from "../(components)/AppInput";
 import PrimaryButton from "../(components)/PrimaryButton";
-import { useAuth } from '../context/AuthContext';
-import FirebaseService, { auth } from "../services/FirebaseService";
+import { useAuth } from '../../context/AuthContext';
+import FirebaseService from "../../services/FirebaseService";
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -60,17 +61,18 @@ export default function LoginScreen() {
     responseType: 'token id_token',
     usePKCE: false,
     extraParams: {
-        nonce: 'PandaPlannerNonce2026' // This satisfies Google's security requirement
-      },
+      nonce: 'PandaPlannerNonce2026' // This satisfies Google's security requirement
+    },
     redirectUri: AuthSession.makeRedirectUri({
-        scheme: 'pandaplanner',
+      useProxy: true,
+      scheme: 'pandaplanner',
     }),
     scopes: [
-        'openid',
-        'profile',
-        'email',
-        'https://www.googleapis.com/auth/calendar.events',
-        'https://www.googleapis.com/auth/tasks',
+      'openid',
+      'profile',
+      'email',
+      'https://www.googleapis.com/auth/calendar.events',
+      'https://www.googleapis.com/auth/tasks',
     ],
   });
 
@@ -472,28 +474,28 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '500',
   },
-googleButton: {
-  borderRadius: 30,
-  overflow: 'hidden',
-  shadowColor: '#9BD8EC', // Changed from '#4285F4' to your frosted blue
-  shadowOffset: { width: 0, height: 2 },
-  shadowOpacity: 0.2,
-  shadowRadius: 4,
-  elevation: 3,
-},
-googleGradient: {
-  flexDirection: 'row',
-  alignItems: 'center',
-  justifyContent: 'center',
-  gap: 12,
-  paddingVertical: 14,
-  borderRadius: 30,
-},
-googleButtonText: {
-  color: 'white',
-  fontSize: 16,
-  fontWeight: '600',
-},
+  googleButton: {
+    borderRadius: 30,
+    overflow: 'hidden',
+    shadowColor: '#9BD8EC', // Changed from '#4285F4' to your frosted blue
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  googleGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 12,
+    paddingVertical: 14,
+    borderRadius: 30,
+  },
+  googleButtonText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: '600',
+  },
   footer: {
     flexDirection: 'row',
     justifyContent: 'center',

@@ -6,6 +6,7 @@ import { useRouter } from "expo-router";
 import { useEffect, useRef, useState } from "react";
 import { ActivityIndicator, Alert, Animated, Dimensions, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 
+import FirebaseService from "../services/FirebaseService";
 import AppInput from "./(components)/AppInput";
 import { useAuth } from "./context/AuthContext";
 import FirebaseService from "./services/FirebaseService";
@@ -33,7 +34,6 @@ export default function AddEvent() {
   const [startTime, setStartTime] = useState(new Date());
   const [endTime, setEndTime] = useState(new Date(Date.now() + 60 * 60 * 1000));
   const [reminderTime, setReminderTime] = useState(new Date());
-
   const [isLoading, setIsLoading] = useState(false);
   const [menuVisible, setMenuVisible] = useState(false);
   const [pickerMode, setPickerMode] = useState<{ visible: boolean, type: 'date' | 'time', field: string }>({
@@ -147,6 +147,12 @@ export default function AddEvent() {
     }
   };
 
+  const [pickerMode, setPickerMode] = useState<{ visible: boolean, type: 'date' | 'time', field: string }>({
+    visible: false,
+    type: 'date',
+    field: ''
+  });
+
   const showPicker = (type: 'date' | 'time', field: string) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setPickerMode({ visible: true, type, field });
@@ -155,7 +161,6 @@ export default function AddEvent() {
   const onPickerChange = (event: any, selectedDate?: Date) => {
     if (Platform.OS === 'android') setPickerMode({ ...pickerMode, visible: false });
     if (!selectedDate) return;
-
     if (pickerMode.field === 'date') setDate(selectedDate);
     else if (pickerMode.field === 'start') setStartTime(selectedDate);
     else if (pickerMode.field === 'end') setEndTime(selectedDate);
@@ -174,13 +179,6 @@ export default function AddEvent() {
     inputRange: [0, 1],
     outputRange: ['0deg', '45deg'],
   });
-
-  const currentPickerValue = () => {
-    if (pickerMode.field === 'date') return date;
-    if (pickerMode.field === 'start') return startTime;
-    if (pickerMode.field === 'end') return endTime;
-    return reminderTime;
-  };
 
   return (
     <LinearGradient colors={['#FFFFFF', '#FFFBF5']} style={styles.container}>
@@ -256,12 +254,10 @@ export default function AddEvent() {
             />
           </View>
 
-          <View style={styles.dateTimeRow}>
-            <Pressable style={[styles.card, { flex: 1 }]} onPress={() => showPicker('date', 'date')}>
-              <Text style={styles.cardTitle}>DATE</Text>
-              <Text style={styles.valueText}>{date.toLocaleDateString()}</Text>
-            </Pressable>
-          </View>
+          <Pressable style={styles.card} onPress={() => showPicker('date', 'date')}>
+            <Text style={styles.cardTitle}>DATE</Text>
+            <Text style={styles.valueText}>{date.toLocaleDateString()}</Text>
+          </Pressable>
 
           {!isReminder ? (
             <View style={styles.dateTimeRow}>
@@ -305,47 +301,15 @@ export default function AddEvent() {
                 </Pressable>
               </View>
               <DateTimePicker
-                value={currentPickerValue()}
+                value={isReminder && pickerMode.field === 'reminder' ? reminderTime : (pickerMode.field === 'start' ? startTime : (pickerMode.field === 'end' ? endTime : date))}
                 mode={pickerMode.type}
                 display={Platform.OS === 'ios' ? 'spinner' : 'default'}
                 onChange={onPickerChange}
-                textColor="#000"
               />
             </View>
           </View>
         </Modal>
       )}
-
-      <Modal
-        visible={menuVisible}
-        transparent={true}
-        animationType="fade"
-        onRequestClose={() => setMenuVisible(false)}
-      >
-        <Pressable style={styles.overlay} onPress={() => setMenuVisible(false)}>
-          <View style={styles.menu}>
-            <View style={styles.menuHeader}>
-              <Text style={styles.menuHeaderText}>🐼 Panda Menu</Text>
-            </View>
-            <Pressable style={styles.menuItem} onPress={() => {
-              setMenuVisible(false);
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-              router.push("/import");
-            }}>
-              <Ionicons name="cloud-upload-outline" size={20} color="#FF8787" />
-              <Text style={styles.menuText}>Import Schedule</Text>
-            </Pressable>
-            <Pressable style={styles.menuItem} onPress={() => {
-              setMenuVisible(false);
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-              Alert.alert("🐼 Panda Help", "Add events or reminders and I'll keep you organized!");
-            }}>
-              <Ionicons name="help-circle-outline" size={20} color="#FF8787" />
-              <Text style={styles.menuText}>Help & Tips</Text>
-            </Pressable>
-          </View>
-        </Pressable>
-      </Modal>
     </LinearGradient>
   );
 }
@@ -357,15 +321,14 @@ const styles = StyleSheet.create({
   headerButton: { padding: 8, borderRadius: 20, backgroundColor: '#FFF' },
   headerTitle: { fontSize: 18, fontWeight: "700", color: '#3A3A3A' },
   toggleContainer: { paddingHorizontal: 20, marginBottom: 20 },
-  toggleBackground: { flexDirection: 'row', backgroundColor: '#F0F0F0', borderRadius: 25, padding: 4, position: 'relative', height: 50, width: width * 0.9 },
+  toggleBackground: { flexDirection: 'row', backgroundColor: '#F0F0F0', borderRadius: 25, padding: 4, height: 50, width: width * 0.9 },
   toggleThumb: { position: 'absolute', width: '48%', height: 42, backgroundColor: '#FFF', borderRadius: 22, top: 4, shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 4, elevation: 2 },
   toggleOption: { flex: 1, alignItems: 'center', justifyContent: 'center', zIndex: 1 },
   toggleText: { fontSize: 14, fontWeight: '500', color: '#8E8E93' },
   toggleTextActive: { color: '#FF8787', fontWeight: '700' },
   scrollContent: { paddingBottom: 40 },
-  card: { backgroundColor: '#FFFFFF', borderRadius: 16, marginHorizontal: 20, marginBottom: 12, padding: 16, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 5, elevation: 1 },
+  card: { backgroundColor: '#FFFFFF', borderRadius: 16, marginHorizontal: 20, marginBottom: 12, padding: 16, elevation: 1 },
   cardTitle: { fontSize: 10, fontWeight: '700', color: '#BDBDBD', marginBottom: 8, letterSpacing: 1 },
-  input: { fontSize: 16, color: '#3A3A3A', paddingVertical: 4, borderWidth: 0, backgroundColor: 'transparent' },
   dateTimeRow: { flexDirection: 'row', justifyContent: 'space-between' },
   valueText: { fontSize: 16, color: '#3A3A3A', fontWeight: '600' },
   buttonWrapper: { marginHorizontal: 20, marginTop: 20 },
