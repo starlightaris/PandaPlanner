@@ -92,22 +92,28 @@ export default function AddEvent() {
         }
 
         // --- CONFLICT CHECK FOR MANUAL ENTRY ---
-        const hasConflict = await FirebaseService.checkConflict(finalStart, finalEnd);
-        if (hasConflict) {
-          const proceed = await new Promise((resolve) => {
+        const conflicting = await FirebaseService.getConflictingEvents(finalStart, finalEnd);
+        if (conflicting.length > 0) {
+          const conflictTitles = conflicting.map(e => `• ${e.title}`).join('\n');
+          const action = await new Promise<'cancel' | 'keep' | 'replace'>((resolve) => {
             Alert.alert(
               "Schedule Conflict 🐼",
-              "This event overlaps with something else. Add it anyway?",
+              `This event overlaps with:\n\n${conflictTitles}\n\nWhat would you like to do?`,
               [
-                { text: "Cancel", onPress: () => resolve(false), style: "cancel" },
-                { text: "Add Anyway", onPress: () => resolve(true) }
+                { text: "Cancel", style: "cancel", onPress: () => resolve('cancel') },
+                { text: "Keep Both", onPress: () => resolve('keep') },
+                { text: "Replace Existing", style: "destructive", onPress: () => resolve('replace') },
               ]
             );
           });
-          if (!proceed) {
-            setIsLoading(false);
-            return;
+
+          if (action === 'cancel') { setIsLoading(false); return; }
+          if (action === 'replace') {
+            for (const conflict of conflicting) {
+              if (conflict.id) await FirebaseService.deleteEvent(conflict.id);
+            }
           }
+          // 'keep' falls through and saves normally
         }
 
         await FirebaseService.saveEvent({
@@ -129,7 +135,7 @@ export default function AddEvent() {
     }
   };
 
-  const [pickerMode, setPickerMode] = useState<{visible: boolean, type: 'date' | 'time', field: string}>({
+  const [pickerMode, setPickerMode] = useState<{ visible: boolean, type: 'date' | 'time', field: string }>({
     visible: false,
     type: 'date',
     field: ''
@@ -162,7 +168,7 @@ export default function AddEvent() {
             <Ionicons name="close" size={24} color="#5C5C5C" />
           </Pressable>
           <Text style={styles.headerTitle}>{isReminder ? "New Reminder" : "New Event"}</Text>
-          <View style={{ width: 40 }} /> 
+          <View style={{ width: 40 }} />
         </View>
 
         <View style={styles.toggleContainer}>

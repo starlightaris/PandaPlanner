@@ -100,18 +100,24 @@ class FirebaseService {
 
   // --- FIRESTORE METHODS ---
 
-  async checkConflict(startTime: Date, endTime: Date): Promise<boolean> {
+  async getConflictingEvents(startTime: Date, endTime: Date): Promise<PlannerEvent[]> {
     try {
       const existingEvents = await this.getUserEvents();
-      return existingEvents.some(event => {
+      return existingEvents.filter(event => {
         const existingStart = new Date(event.startTime);
         const existingEnd = new Date(event.endTime);
-        return (startTime < existingEnd && endTime > existingStart);
+        return startTime < existingEnd && endTime > existingStart;
       });
     } catch (error) {
       console.error("Conflict Check Error:", error);
-      return false;
+      return [];
     }
+  }
+
+  // Keep the old one working by using the new one
+  async checkConflict(startTime: Date, endTime: Date): Promise<boolean> {
+    const conflicts = await this.getConflictingEvents(startTime, endTime);
+    return conflicts.length > 0;
   }
 
   // SAVING METHODS
@@ -125,6 +131,10 @@ class FirebaseService {
       endTime: Timestamp.fromDate(eventData.endTime),
       createdAt: serverTimestamp()
     });
+  }
+
+  async deleteEvent(id: string) {
+    return await this.deleteItem(id, 'events');
   }
 
   async saveReminder(reminderData: PlannerReminder) {

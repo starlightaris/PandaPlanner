@@ -8,6 +8,7 @@ import {
   Alert,
   FlatList,
   KeyboardAvoidingView,
+  Modal,
   Platform,
   Pressable,
   SafeAreaView,
@@ -29,6 +30,53 @@ interface Message {
   timestamp: Date;
 }
 
+const ConflictModal = ({
+  visible,
+  eventTitle,
+  conflictTitles,
+  onAction,
+}: {
+  visible: boolean;
+  eventTitle: string;
+  conflictTitles: string;
+  onAction: (action: 'cancel' | 'keep' | 'replace') => void;
+}) => (
+  <Modal transparent visible={visible} animationType="fade">
+    <View style={conflictStyles.overlay}>
+      <View style={conflictStyles.box}>
+        <Text style={conflictStyles.title}>Schedule Conflict 🐼</Text>
+        <Text style={conflictStyles.body}>
+          <Text style={{ fontWeight: '700' }}>"{eventTitle}"</Text> overlaps with:{'\n\n'}{conflictTitles}
+        </Text>
+        <Text style={conflictStyles.question}>What would you like to do?</Text>
+        <Pressable style={conflictStyles.btnKeep} onPress={() => onAction('keep')}>
+          <Text style={conflictStyles.btnKeepText}>Keep Both</Text>
+        </Pressable>
+        <Pressable style={conflictStyles.btnReplace} onPress={() => onAction('replace')}>
+          <Text style={conflictStyles.btnReplaceText}>Replace Existing</Text>
+        </Pressable>
+        <Pressable style={conflictStyles.btnCancel} onPress={() => onAction('cancel')}>
+          <Text style={conflictStyles.btnCancelText}>Skip This Event</Text>
+        </Pressable>
+      </View>
+    </View>
+  </Modal>
+);
+
+const conflictStyles = StyleSheet.create({
+  overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'center', alignItems: 'center' },
+  box: { backgroundColor: '#FFF', borderRadius: 24, padding: 24, marginHorizontal: 32, width: '85%', maxWidth: 360 },
+  title: { fontSize: 18, fontWeight: '700', color: '#3A3A3A', marginBottom: 12 },
+  body: { fontSize: 14, color: '#5C5C5C', lineHeight: 20, marginBottom: 8 },
+  question: { fontSize: 13, color: '#9B9B9B', marginBottom: 16 },
+  btnKeep: { backgroundColor: '#FFF5F0', borderRadius: 16, paddingVertical: 12, alignItems: 'center', marginBottom: 8, borderWidth: 1, borderColor: '#FFE5E5' },
+  btnKeepText: { color: '#FF8787', fontWeight: '600', fontSize: 14 },
+  btnReplace: { backgroundColor: '#FF8787', borderRadius: 16, paddingVertical: 12, alignItems: 'center', marginBottom: 8 },
+  btnReplaceText: { color: '#FFF', fontWeight: '600', fontSize: 14 },
+  btnCancel: { paddingVertical: 10, alignItems: 'center' },
+  btnCancelText: { color: '#9B9B9B', fontSize: 13 },
+});
+
 export default function ChatImport() {
   const router = useRouter();
   const [message, setMessage] = useState("");
@@ -44,6 +92,12 @@ export default function ChatImport() {
   const [extractedEvents, setExtractedEvents] = useState<PlannerEvent[]>([]);
   const flatListRef = useRef<FlatList>(null);
   const inputRef = useRef<TextInput>(null);
+  const [conflictModal, setConflictModal] = useState<{
+    visible: boolean;
+    eventTitle: string;
+    conflictTitles: string;
+    resolve: ((action: 'cancel' | 'keep' | 'replace') => void) | null;
+  }>({ visible: false, eventTitle: '', conflictTitles: '', resolve: null });
 
   useEffect(() => {
     if (messages.length > 0) {
@@ -53,13 +107,18 @@ export default function ChatImport() {
     }
   }, [messages]);
 
+  const showConflictModal = (eventTitle: string, conflictTitles: string) => {
+    return new Promise<'cancel' | 'keep' | 'replace'>((resolve) => {
+      setConflictModal({ visible: true, eventTitle, conflictTitles, resolve });
+    });
+  };
+
   const sendMessage = async () => {
     if (!message.trim() || isProcessing) return;
 
     const userText = message.trim();
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
-    // 1. Add User Message
     const userMsg: Message = {
       id: Date.now().toString(),
       text: userText,
@@ -74,13 +133,11 @@ export default function ChatImport() {
     try {
       const extracted = await AIService.parseSchedule(userText);
 
-      // 2. Check if we actually got data
       if (extracted && extracted.length > 0) {
         setExtractedEvents(extracted);
 
         const eventSummary = extracted
           .map(e => {
-            // e.startTime is now a Date object
             const timeStr = e.startTime.toLocaleTimeString([], {
               hour: '2-digit',
               minute: '2-digit'
@@ -97,7 +154,6 @@ export default function ChatImport() {
         };
         setMessages(prev => [...prev, botMsg]);
       } else {
-        // 3. Fallback if no events found
         const failMsg: Message = {
           id: (Date.now() + 1).toString(),
           text: "🤔 I couldn't find any specific times or titles. Could you try being more specific? (e.g., 'Lunch tomorrow at 1pm')",
@@ -116,32 +172,41 @@ export default function ChatImport() {
 
   const confirmImport = async () => {
     if (extractedEvents.length === 0) return;
-
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     setIsProcessing(true);
 
     try {
-      // 3. Save each extracted event to Firestore
+      let savedCount = 0;
+
       for (const event of extractedEvents) {
-        await FirebaseService.saveEvent({
-          ...event,
-          source: "AI_Scan" // Or "Chat_Import" if you prefer
-        });
+        const conflicting = await FirebaseService.getConflictingEvents(event.startTime, event.endTime);
+
+        if (conflicting.length > 0) {
+          const conflictTitles = conflicting.map(e => `• ${e.title}`).join('\n');
+          const action = await showConflictModal(event.title, conflictTitles);
+
+          if (action === 'cancel') continue;
+          if (action === 'replace') {
+            for (const conflict of conflicting) {
+              if (conflict.id) await FirebaseService.deleteEvent(conflict.id);
+            }
+          }
+          // 'keep' falls through and saves normally
+        }
+
+        await FirebaseService.saveEvent({ ...event, source: "AI_Scan" });
+        savedCount++;
       }
 
       const confirmMsg: Message = {
         id: Date.now().toString(),
-        text: `🎉 Success! I've synced ${extractedEvents.length} event${extractedEvents.length > 1 ? 's' : ''} to your calendar.`,
+        text: `🎉 Done! Synced ${savedCount} event${savedCount !== 1 ? 's' : ''} to your calendar.`,
         isUser: false,
         timestamp: new Date(),
       };
       setMessages(prev => [...prev, confirmMsg]);
       setExtractedEvents([]);
-
-      // Auto-exit after success
-      setTimeout(() => {
-        router.back();
-      }, 2000);
+      setTimeout(() => router.back(), 2000);
 
     } catch (error) {
       Alert.alert("Save Failed", "I couldn't save those events to your account.");
@@ -278,6 +343,17 @@ export default function ChatImport() {
             </View>
           </View>
         </KeyboardAvoidingView>
+
+        {/* Conflict Modal */}
+        <ConflictModal
+          visible={conflictModal.visible}
+          eventTitle={conflictModal.eventTitle}
+          conflictTitles={conflictModal.conflictTitles}
+          onAction={(action) => {
+            setConflictModal(prev => ({ ...prev, visible: false }));
+            conflictModal.resolve?.(action);
+          }}
+        />
       </LinearGradient>
     </SafeAreaView>
   );
