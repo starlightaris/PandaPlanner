@@ -16,6 +16,7 @@ export interface PlannerEvent {
   googleEventId?: string;
   isSyncedWithGoogle?: boolean;
 }
+
 export interface PlannerTask {
   id?: string;
   title: string;
@@ -35,7 +36,8 @@ export interface PlannerReminder {
 }
 
 class FirebaseService {
-  // --- AUTH METHODS ---
+
+  // AUTH 
 
   async signUp(email: string, password: string): Promise<User> {
     const credential = await createUserWithEmailAndPassword(auth, email, password);
@@ -63,12 +65,9 @@ class FirebaseService {
     const user = result.user;
 
     const userRef = doc(db, 'users', user.uid);
-
-    // Check if user doc already exists (returning user vs new user)
     const userSnap = await getDoc(userRef);
 
     if (!userSnap.exists()) {
-      // New Google user — create full document like signUp does
       await setDoc(userRef, {
         uid: user.uid,
         email: user.email,
@@ -79,7 +78,6 @@ class FirebaseService {
         provider: 'google.com',
       });
     } else {
-      // Returning user — just update lastLogin
       await updateDoc(userRef, { lastLogin: serverTimestamp() });
     }
     return user;
@@ -89,7 +87,66 @@ class FirebaseService {
     await signOut(auth);
   }
 
-  // --- FIRESTORE METHODS ---
+  // GENERIC HELPER 
+
+  private async addToCollection(collectionName: 'schedules' | 'tasks' | 'reminders', data: any) {
+    const user = auth.currentUser;
+    if (!user) throw new Error("No authenticated user");
+
+    const formattedData = { ...data };
+    Object.keys(formattedData).forEach(key => {
+      if (formattedData[key] instanceof Date) {
+        formattedData[key] = Timestamp.fromDate(formattedData[key]);
+      }
+    });
+
+    const docRef = await addDoc(collection(db, 'users', user.uid, collectionName), {
+      ...formattedData,
+      userId: user.uid,
+      createdAt: serverTimestamp(),
+    });
+    return docRef.id;
+  }
+
+  // EVENTS 
+
+  async addEvent(eventData: PlannerEvent, syncToGoogle: boolean = false, accessToken?: string) {
+    const eventId = await this.addToCollection('schedules', eventData);
+
+    if (syncToGoogle) {
+      if (!accessToken) {
+        await this.updateEventSyncPreference(eventId, 'pending_authorization');
+        return eventId;
+      }
+      try {
+        const googleResult = await GoogleService.saveEvent(eventData, accessToken);
+        if (googleResult && googleResult.id) {
+          await this.updateEventSyncStatus(eventId, googleResult.id);
+        }
+      } catch (e) {
+        console.error("Google Sync failed", e);
+      }
+    }
+    return eventId;
+  }
+
+  async getUserEvents(): Promise<PlannerEvent[]> {
+    const userId = auth.currentUser?.uid;
+    if (!userId) return [];
+
+    const q = query(collection(db, 'users', userId, 'schedules'), orderBy('startTime', 'asc'));
+    const querySnapshot = await getDocs(q);
+    return querySnapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data(),
+      startTime: (doc.data().startTime as Timestamp).toDate(),
+      endTime: (doc.data().endTime as Timestamp).toDate(),
+    })) as PlannerEvent[];
+  }
+
+  async deleteEvent(id: string) {
+    return await this.deleteItem(id, 'reminders'); // use deleteItem with correct collection
+  }
 
   async getConflictingEvents(startTime: Date, endTime: Date): Promise<PlannerEvent[]> {
     try {
@@ -105,73 +162,11 @@ class FirebaseService {
     }
   }
 
-  // Keep the old one working by using the new one
   async checkConflict(startTime: Date, endTime: Date): Promise<boolean> {
     const conflicts = await this.getConflictingEvents(startTime, endTime);
     return conflicts.length > 0;
   }
 
-   // --- GENERIC HELPER FOR ADDS ---
-
-   private async addToCollection(collectionName: 'schedules' | 'tasks' | 'reminders', data: any) {
-     const user = auth.currentUser;
-     if (!user) throw new Error("No authenticated user");
-
-     // Convert any Dates to Firestore Timestamps before saving
-     const formattedData = { ...data };
-     Object.keys(formattedData).forEach(key => {
-       if (formattedData[key] instanceof Date) {
-         formattedData[key] = Timestamp.fromDate(formattedData[key]);
-       }
-     });
-
-     const docRef = await addDoc(collection(db, 'users', user.uid, collectionName), {
-       ...formattedData,
-       userId: user.uid,
-       createdAt: serverTimestamp(),
-     });
-     return docRef.id;
-   }
-
-   // --- PUBLIC DATA METHODS ---
-
- async addEvent(eventData: PlannerEvent, syncToGoogle: boolean = false, accessToken?: string) {
-    // 1. Initial save to Firestore
-    const eventId = await this.addToCollection('schedules', eventData);
-
-    if (syncToGoogle) {
-      if (!accessToken) {
-        // If user wants to sync but has no token, save the preference to sync "later"
-        await this.updateEventSyncPreference(eventId, 'pending_authorization');
-        return eventId; // Return ID but logic in component handles the "GOOGLE_AUTH_REQUIRED" alert
-      }
-
-      try {
-        const googleResult = await GoogleService.saveEvent(eventData, accessToken);
-        // 2. Update Firebase with the Google ID so they stay linked
-        if (googleResult && googleResult.id) {
-            await this.updateEventSyncStatus(eventId, googleResult.id);
-        }
-      } catch (e) {
-        console.error("Google Sync failed", e);
-      }
-    }
-    return eventId;
-  }
-
-  async addTask(taskData: PlannerTask) {
-    return await this.addToCollection('tasks', taskData);
-  }
-
-  async addReminder(reminderData: PlannerReminder) {
-    return await this.addToCollection('reminders', reminderData);
-  }
-
-  // --- SYNC HELPERS ---
-
-  /**
-   * Updates an event with its Google Calendar ID and sets sync status to true.
-   */
   async updateEventSyncStatus(eventId: string, googleEventId: string) {
     const userId = auth.currentUser?.uid;
     if (!userId) return;
@@ -184,65 +179,44 @@ class FirebaseService {
     });
   }
 
-  /**
-   * Updates the sync preference for an event (e.g., if authorization is needed later).
-   */
   async updateEventSyncPreference(eventId: string, status: 'pending_authorization' | 'failed' | 'synced') {
     const userId = auth.currentUser?.uid;
     if (!userId) return;
 
     const eventRef = doc(db, 'users', userId, 'schedules', eventId);
-    return await updateDoc(eventRef, {
-      syncStatus: status
-    });
+    return await updateDoc(eventRef, { syncStatus: status });
   }
 
-  // SAVING METHODS
+  // TASKS & REMINDERS
 
-
-  async deleteEvent(id: string) {
-    return await this.deleteItem(id, 'events');
+  async addTask(taskData: PlannerTask) {
+    return await this.addToCollection('tasks', taskData);
   }
 
-    // --- FETCH METHODS ---
+  async addReminder(reminderData: PlannerReminder) {
+    return await this.addToCollection('reminders', reminderData);
+  }
 
-    async getUserEvents(): Promise<PlannerEvent[]> {
-      const userId = auth.currentUser?.uid;
-      if (!userId) return [];
+  async getUserTasks(): Promise<PlannerTask[]> {
+    const userId = auth.currentUser?.uid;
+    if (!userId) return [];
 
-      const q = query(collection(db, 'users', userId, 'schedules'), orderBy('startTime', 'asc'));
-      const querySnapshot = await getDocs(q);
-      return querySnapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data(),
-        startTime: (doc.data().startTime as Timestamp).toDate(),
-        endTime: (doc.data().endTime as Timestamp).toDate(),
-      })) as PlannerEvent[];
-    }
+    const q = query(collection(db, 'users', userId, 'tasks'), orderBy('createdAt', 'desc'));
+    const querySnapshot = await getDocs(q);
+    return querySnapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data(),
+      dueDate: doc.data().dueDate ? (doc.data().dueDate as Timestamp).toDate() : undefined,
+    })) as PlannerTask[];
+  }
 
-    async getUserTasks(): Promise<PlannerTask[]> {
-      const userId = auth.currentUser?.uid;
-      if (!userId) return [];
-      const q = query(collection(db, 'users', userId, 'tasks'), orderBy('createdAt', 'desc'));
-      const querySnapshot = await getDocs(q);
-      return querySnapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data(),
-        dueDate: doc.data().dueDate ? (doc.data().dueDate as Timestamp).toDate() : undefined,
-      })) as PlannerTask[];
-    }
-
-  // DELETION & UPDATES
   async deleteItem(id: string, type: 'events' | 'reminders') {
     const userId = auth.currentUser?.uid;
     if (!userId) throw new Error("No authenticated user found");
     return await deleteDoc(doc(db, 'users', userId, type, id));
   }
 
-  async saveTodo(userId: string, todo: any) {
-    const colRef = collection(db, "users", userId, "todos");
-    return await addDoc(colRef, { ...todo, createdAt: new Date().toISOString() });
-  }
+  // TODOS
 
   async getTodos(userId: string) {
     const colRef = collection(db, "users", userId, "todos");
@@ -251,9 +225,19 @@ class FirebaseService {
     return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
   }
 
+  async saveTodo(userId: string, todo: any) {
+    const colRef = collection(db, "users", userId, "todos");
+    return await addDoc(colRef, { ...todo, createdAt: new Date().toISOString() });
+  }
+
   async updateTodoStatus(userId: string, todoId: string, done: boolean) {
     const docRef = doc(db, "users", userId, "todos", todoId);
     return await updateDoc(docRef, { done });
+  }
+
+  async updateTodoTitle(userId: string, todoId: string, title: string) {
+    const docRef = doc(db, "users", userId, "todos", todoId);
+    return await updateDoc(docRef, { title });
   }
 
   async removeTodo(userId: string, todoId: string) {

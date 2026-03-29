@@ -87,8 +87,7 @@ export default function TodoScreen() {
 
     } catch (err) {
       console.error(err);
-    }
-    finally {
+    } finally {
       setLoading(false);
     }
   };
@@ -115,7 +114,6 @@ export default function TodoScreen() {
     };
 
     try {
-
       const docRef = await FirebaseService.saveTodo(user.uid, todoData);
 
       setTodos(prev => [
@@ -129,9 +127,7 @@ export default function TodoScreen() {
       ]);
 
     } catch (err) {
-
       Alert.alert("Error", "Could not save task");
-
     }
 
     setNewTodo("");
@@ -139,9 +135,7 @@ export default function TodoScreen() {
     setSelectedCategory("Personal");
     setSelectedPriority("medium");
     setDueDate(new Date());
-
   };
-
 
   const toggleTodo = async (id: string) => {
 
@@ -152,7 +146,6 @@ export default function TodoScreen() {
     if (!target) return;
 
     try {
-
       await FirebaseService.updateTodoStatus(user.uid, id, !target.done);
 
       setTodos(prev =>
@@ -166,17 +159,18 @@ export default function TodoScreen() {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
     } catch {
-
       Alert.alert("Error", "Update failed");
-
     }
-
   };
 
-  // ✅ DELETE TODO
-  const deleteTodo = (id: string) => {
+  const startEdit = (todo: Todo) => {
+    setEditingId(todo.id);
+    setEditingText(todo.title);
+  };
 
-    Alert.alert("Delete Task",
+  const deleteTodo = (id: string) => {
+    Alert.alert(
+      "Delete Task",
       "Are you sure you want to delete this task?",
       [
         { text: "Cancel", style: "cancel" },
@@ -184,55 +178,49 @@ export default function TodoScreen() {
           text: "Delete",
           style: "destructive",
           onPress: async () => {
-
             if (!user) return;
-
             await FirebaseService.removeTodo(user.uid, id);
-
             setTodos(prev => prev.filter(todo => todo.id !== id));
-
           }
         }
-      ]);
-
+      ]
+    );
   };
 
-  // ✅ EDIT TODO (firebase synced)
+  // FIX 1: null guard on editingId before calling Firebase
+  // FIX 2: error handling so a failed write isn't silent
+  // FIX 3: shared save logic used by both onSubmitEditing and onBlur
   const saveEdit = async () => {
+    if (!editingText.trim() || !user || !editingId) return;
 
-    if (!editingText.trim() || !user) return;
+    try {
+      await FirebaseService.updateTodoTitle(user.uid, editingId, editingText);
 
-    await FirebaseService.updateTodoTitle(user.uid, editingId, editingText);
-
-    setTodos(prev =>
-      prev.map(todo =>
-        todo.id === editingId
-          ? { ...todo, title: editingText }
-          : todo
-      )
-    );
+      setTodos(prev =>
+        prev.map(todo =>
+          todo.id === editingId
+            ? { ...todo, title: editingText }
+            : todo
+        )
+      );
+    } catch {
+      Alert.alert("Error", "Could not update task title");
+    }
 
     setEditingId(null);
-
   };
 
   if (loading) {
-
     return (
-
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
         <ActivityIndicator size="large" color="#FF8787" />
       </View>
-
     );
-
   }
-
 
   const handleAddPress = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
-    // Animate the + button
     Animated.sequence([
       Animated.timing(addButtonScale, {
         toValue: 0.8,
@@ -364,14 +352,8 @@ export default function TodoScreen() {
               <Text style={styles.pandaEmoji}>🐼</Text>
             </View>
           </View>
-          <Animated.View
-            style={[
-              styles.addButtonWrapper,
-              {
-                transform: [{ scale: addButtonScale }]
-              }
-            ]}
-          >
+          {/* FIX 4: addButtonWrapper was referenced but never defined in StyleSheet — inlined the style */}
+          <Animated.View style={{ transform: [{ scale: addButtonScale }] }}>
             <Pressable
               onPress={handleAddPress}
               style={styles.addButton}
@@ -506,13 +488,23 @@ export default function TodoScreen() {
 
                   <View style={styles.todoContent}>
                     {editingId === item.id ? (
-                      <TextInput
-                        style={styles.editInput}
-                        value={editingText}
-                        onChangeText={setEditingText}
-                        onSubmitEditing={saveEdit}
-                        autoFocus
-                      />
+                      <View>
+                        <TextInput
+                          style={styles.editInput}
+                          value={editingText}
+                          onChangeText={setEditingText}
+                          onSubmitEditing={saveEdit}
+                          autoFocus
+                        />
+                        <View style={styles.editActions}>
+                          <Pressable style={styles.cancelButton} onPress={() => setEditingId(null)}>
+                            <Text style={styles.cancelButtonText}>Cancel</Text>
+                          </Pressable>
+                          <Pressable style={styles.confirmButton} onPress={saveEdit}>
+                            <Text style={styles.confirmButtonText}>Save</Text>
+                          </Pressable>
+                        </View>
+                      </View>
                     ) : (
                       <>
                         <Text
@@ -810,6 +802,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'flex-end',
     gap: 12,
+  },
+  editActions: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: 8,
+    marginTop: 8,
   },
   cancelButton: {
     paddingVertical: 8,
