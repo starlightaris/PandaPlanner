@@ -7,9 +7,9 @@ import { Alert, Animated, Pressable, RefreshControl, ScrollView, StyleSheet, Tex
 
 // --- PROJECT IMPORTS ---
 import EventCard from "../(components)/EventCard";
-import { useAuth } from '../context/AuthContext';
-import FirebaseService from "../services/FirebaseService";
-import MLService, { Suggestion } from "../services/MLService";
+import { useAuth } from '../../context/AuthContext';
+import FirebaseService from "../../services/FirebaseService";
+import MLService, { Suggestion } from "../../services/MLService";
 
 export default function Home() {
   const router = useRouter();

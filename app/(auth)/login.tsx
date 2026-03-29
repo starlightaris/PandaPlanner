@@ -1,20 +1,18 @@
-import {signInWithCredential,GoogleAuthProvider} from "firebase/auth";
-import { View, Text, StyleSheet, Pressable, Alert, ActivityIndicator, Animated, KeyboardAvoidingView, Platform, ScrollView } from "react-native";
-import { useRouter } from "expo-router";
-import { useState, useEffect, useRef } from "react";
 import { Ionicons } from "@expo/vector-icons";
-import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
+import { LinearGradient } from 'expo-linear-gradient';
+import { useRouter } from "expo-router";
+import { useEffect, useRef, useState } from "react";
+import { ActivityIndicator, Alert, Animated, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 
+import * as AuthSession from 'expo-auth-session';
 import * as Google from 'expo-auth-session/providers/google';
 import * as WebBrowser from 'expo-web-browser';
-import * as AuthSession from 'expo-auth-session';
 
 import AppInput from "../(components)/AppInput";
 import PrimaryButton from "../(components)/PrimaryButton";
-import { Colors } from "../theme/colors";
-import FirebaseService, { auth } from "../services/FirebaseService";
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '../../context/AuthContext';
+import FirebaseService from "../../services/FirebaseService";
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -62,18 +60,18 @@ export default function LoginScreen() {
     responseType: 'token id_token',
     usePKCE: false,
     extraParams: {
-        nonce: 'PandaPlannerNonce2026' // This satisfies Google's security requirement
-      },
+      nonce: 'PandaPlannerNonce2026' // This satisfies Google's security requirement
+    },
     redirectUri: AuthSession.makeRedirectUri({
-        useProxy: true,
-        scheme: 'pandaplanner',
+      useProxy: true,
+      scheme: 'pandaplanner',
     }),
     scopes: [
-        'openid',
-        'profile',
-        'email',
-        'https://www.googleapis.com/auth/calendar.events',
-        'https://www.googleapis.com/auth/tasks',
+      'openid',
+      'profile',
+      'email',
+      'https://www.googleapis.com/auth/calendar.events',
+      'https://www.googleapis.com/auth/tasks',
     ],
   });
 
@@ -83,44 +81,31 @@ export default function LoginScreen() {
     }
   }, [request])
 
-useEffect(() => {
-  if (response?.type === 'success') {
-    // 1. Get the token safely
-    const { id_token, access_token } = response.params;
+  useEffect(() => {
+    if (response?.type === 'success') {
+      const { id_token, access_token } = response.params;
 
-    // 2. LOG IT to see what's actually happening
-    console.log("Tokens received:", { id_token: !!id_token, access_token: !!access_token });
+      console.log("Tokens received:", { id_token: !!id_token, access_token: !!access_token });
 
-    if (id_token) {
-      const credential = GoogleAuthProvider.credential(id_token);
-      signInWithCredential(auth, credential)
-        .then((userCredential) => {
-          console.log("Firebase Auth Success!");
-          setUser(userCredential.user);
-          setAccessToken(access_token);
-          router.replace("/(tabs)");
-        })
-        .catch((error) => console.error("Firebase Auth Error:", error));
-    } else {
-      console.error("No ID Token found in response. Check your Google Cloud Console settings.");
+      if (id_token) {
+        setIsLoading(true);
+        FirebaseService.loginWithGoogle(id_token)
+          .then((user) => {
+            setUser(user);
+            setAccessToken(access_token);
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+            router.replace("/(tabs)");
+          })
+          .catch((error) => {
+            console.error("Firebase Auth Error:", error);
+            Alert.alert("Login Failed", "Authenticated with Google, but couldn't sync with PandaPlanner.");
+          })
+          .finally(() => setIsLoading(false));
+      } else {
+        console.error("No ID Token found in response.");
+      }
     }
-  }
-}, [response]);
-
-  const handleGoogleLogin = async (token: string) => {
-    setIsLoading(true);
-    try {
-      const userProfile = await FirebaseService.loginWithGoogle(token);
-      setUser(userProfile);
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      router.replace("/(tabs)");
-    } catch (error) {
-      console.error("Firebase Auth Error:", error);
-      Alert.alert("Login Failed", "Authenticated with Google, but couldn't sync with PandaPlanner.");
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  }, [response]);
 
   const handleLogin = async () => {
     if (!email || !password) {
@@ -465,28 +450,28 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '500',
   },
-googleButton: {
-  borderRadius: 30,
-  overflow: 'hidden',
-  shadowColor: '#9BD8EC', // Changed from '#4285F4' to your frosted blue
-  shadowOffset: { width: 0, height: 2 },
-  shadowOpacity: 0.2,
-  shadowRadius: 4,
-  elevation: 3,
-},
-googleGradient: {
-  flexDirection: 'row',
-  alignItems: 'center',
-  justifyContent: 'center',
-  gap: 12,
-  paddingVertical: 14,
-  borderRadius: 30,
-},
-googleButtonText: {
-  color: 'white',
-  fontSize: 16,
-  fontWeight: '600',
-},
+  googleButton: {
+    borderRadius: 30,
+    overflow: 'hidden',
+    shadowColor: '#9BD8EC', // Changed from '#4285F4' to your frosted blue
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  googleGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 12,
+    paddingVertical: 14,
+    borderRadius: 30,
+  },
+  googleButtonText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: '600',
+  },
   footer: {
     flexDirection: 'row',
     justifyContent: 'center',
