@@ -12,7 +12,13 @@ import FirebaseService from "../services/FirebaseService";
 
 export default function CalendarScreen() {
   const router = useRouter();
-  const { accessToken } = useAuth();
+  const { accessToken, user, loading } = useAuth();
+
+  useEffect(() => {
+      if (!loading && !user) {
+        router.replace("/(auth)/login");
+      }
+    }, [user, loading]);
 
   // State
   const [events, setEvents] = useState<any[]>([]);
@@ -27,23 +33,42 @@ export default function CalendarScreen() {
   // --- DATA FETCHING ---
   const fetchAllEvents = useCallback(async () => {
     try {
-      let googleEvents = [];
-      if (accessToken) {
-        const response = await fetch(
-          `https://www.googleapis.com/calendar/v3/calendars/primary/events?timeMin=${new Date().toISOString()}`,
-          { headers: { Authorization: `Bearer ${accessToken}` } }
-        );
-        const data = await response.json();
-        googleEvents = data.items?.map((item: any) => ({
-          id: item.id,
-          title: item.summary,
-          location: item.location || "No Location",
-          date: item.start?.dateTime?.split('T')[0] || item.start?.date,
-          startTime: item.start?.dateTime ? new Date(item.start.dateTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false }) : "00:00",
-          endTime: item.end?.dateTime ? new Date(item.end.dateTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false }) : "23:59",
-          source: "Google"
-        })) || [];
-      }
+          let googleEvents = [];
+          let googleTasks = []; // Added for Tasks
+
+          if (accessToken) {
+            // 1. Fetch Google Calendar
+            const calRes = await fetch(
+              `https://www.googleapis.com/calendar/v3/calendars/primary/events?timeMin=${new Date().toISOString()}`,
+              { headers: { Authorization: `Bearer ${accessToken}` } }
+            );
+            const calData = await calRes.json();
+            googleEvents = calData.items?.map((item: any) => ({
+              id: item.id,
+              title: `📅 ${item.summary}`,
+              location: item.location || "No Location",
+              date: item.start?.dateTime?.split('T') || item.start?.date,
+              startTime: item.start?.dateTime ? new Date(item.start.dateTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false }) : "00:00",
+              endTime: item.end?.dateTime ? new Date(item.end.dateTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false }) : "23:59",
+              source: "Google"
+            })) || [];
+
+            // 2. Fetch Google Tasks
+            const taskRes = await fetch(
+              "https://www.googleapis.com/tasks/v1/lists/@default/tasks",
+              { headers: { Authorization: `Bearer ${accessToken}` } }
+            );
+            const taskData = await taskRes.json();
+            googleTasks = taskData.items?.filter((t: any) => t.title).map((task: any) => ({
+              id: task.id,
+              title: `✅ ${task.title}`,
+              location: "Task List",
+              date: task.due ? task.due.split('T') : new Date().toISOString().split('T'),
+              startTime: "09:00",
+              endTime: "10:00",
+              source: "Google"
+            })) || [];
+          }
 
       const firestoreEvents = await FirebaseService.getUserEvents();
       const formattedFirebase = firestoreEvents.map((event: any) => {
@@ -140,17 +165,22 @@ export default function CalendarScreen() {
   };
 
   const getMarkedDates = () => {
-    const marked: any = { [selectedDate]: { selected: true, selectedColor: "#FF8787" } };
-    events.forEach(event => {
-      const hasConflict = conflicts.has(event.id);
-      marked[event.date] = {
-        ...marked[event.date],
-        marked: true,
-        dotColor: hasConflict ? '#FF5252' : '#FF8787',
-      };
-    });
-    return marked;
-  };
+      const marked: any = { [selectedDate]: { selected: true, selectedColor: "#FF8787" } };
+
+      events.forEach(event => {
+        const hasConflict = conflicts.has(event.id);
+
+        // If a date already has a dot, keep it, but prioritize Red if there's a conflict
+        const existing = marked[event.date] || {};
+
+        marked[event.date] = {
+          ...existing,
+          marked: true,
+          dotColor: hasConflict || existing.dotColor === '#FF5252' ? '#FF5252' : '#FF8787',
+        };
+      });
+      return marked;
+    };
 
   // --- RENDERERS ---
   const renderWeekView = () => {

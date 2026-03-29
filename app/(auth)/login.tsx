@@ -1,3 +1,4 @@
+import {signInWithCredential,GoogleAuthProvider} from "firebase/auth";
 import { View, Text, StyleSheet, Pressable, Alert, ActivityIndicator, Animated, KeyboardAvoidingView, Platform, ScrollView } from "react-native";
 import { useRouter } from "expo-router";
 import { useState, useEffect, useRef } from "react";
@@ -12,7 +13,7 @@ import * as AuthSession from 'expo-auth-session';
 import AppInput from "../(components)/AppInput";
 import PrimaryButton from "../(components)/PrimaryButton";
 import { Colors } from "../theme/colors";
-import FirebaseService from "../services/FirebaseService";
+import FirebaseService, { auth } from "../services/FirebaseService";
 import { useAuth } from '../context/AuthContext';
 
 WebBrowser.maybeCompleteAuthSession();
@@ -54,33 +55,57 @@ export default function LoginScreen() {
   }, []);
 
   const [request, response, promptAsync] = Google.useAuthRequest({
+    iosClientId: '1015755840124-umd5c4l4sqlf2ufhla4nm4kvqg23bhoa.apps.googleusercontent.com',
+    androidClientId: '1015755840124-gr1nfvsb958vl28rqt207g0keupupdvp.apps.googleusercontent.com',
     webClientId: '1015755840124-gn1ob4kv3gpt99dnthfvfacuh50af14b.apps.googleusercontent.com',
     useProxy: true,
+    responseType: 'token id_token',
+    usePKCE: false,
+    extraParams: {
+        nonce: 'PandaPlannerNonce2026' // This satisfies Google's security requirement
+      },
     redirectUri: AuthSession.makeRedirectUri({
-      useProxy: true,
-      scheme: 'pandaplanner',
+        useProxy: true,
+        scheme: 'pandaplanner',
     }),
     scopes: [
-      'https://www.googleapis.com/auth/calendar.events',
-      'https://www.googleapis.com/auth/tasks',
+        'openid',
+        'profile',
+        'email',
+        'https://www.googleapis.com/auth/calendar.events',
+        'https://www.googleapis.com/auth/tasks',
     ],
   });
 
   useEffect(() => {
-    if (response?.type === 'success') {
-      const { authentication } = response;
-      const token = authentication?.accessToken;
-
-      if (token) {
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-        setAccessToken(token);
-        handleGoogleLogin(token);
-      }
-    } else if (response?.type === 'error') {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      Alert.alert("Auth Error", "Google login was interrupted.");
+    if (request) {
+      console.log('✅ Redirect URI:', request.redirectUri);
     }
-  }, [response]);
+  }, [request])
+
+useEffect(() => {
+  if (response?.type === 'success') {
+    // 1. Get the token safely
+    const { id_token, access_token } = response.params;
+
+    // 2. LOG IT to see what's actually happening
+    console.log("Tokens received:", { id_token: !!id_token, access_token: !!access_token });
+
+    if (id_token) {
+      const credential = GoogleAuthProvider.credential(id_token);
+      signInWithCredential(auth, credential)
+        .then((userCredential) => {
+          console.log("Firebase Auth Success!");
+          setUser(userCredential.user);
+          setAccessToken(access_token);
+          router.replace("/(tabs)");
+        })
+        .catch((error) => console.error("Firebase Auth Error:", error));
+    } else {
+      console.error("No ID Token found in response. Check your Google Cloud Console settings.");
+    }
+  }
+}, [response]);
 
   const handleGoogleLogin = async (token: string) => {
     setIsLoading(true);
