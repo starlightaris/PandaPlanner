@@ -210,6 +210,26 @@ class FirebaseService {
     })) as PlannerTask[];
   }
 
+  async getUserReminders(): Promise<PlannerReminder[]> {
+    const userId = auth.currentUser?.uid;
+    if (!userId) return [];
+
+    const q = query(collection(db, 'users', userId, 'reminders'), orderBy('triggerTime', 'asc'));
+    const querySnapshot = await getDocs(q);
+    return querySnapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data(),
+      triggerTime: (doc.data().triggerTime as Timestamp).toDate(),
+    })) as PlannerReminder[];
+  }
+
+  async updateReminderStatus(reminderId: string, isNotified: boolean) {
+    const userId = auth.currentUser?.uid;
+    if (!userId) return;
+    const ref = doc(db, 'users', userId, 'reminders', reminderId);
+    return await updateDoc(ref, { isNotified });
+  }
+
   async deleteItem(id: string, type: 'events' | 'reminders') {
     const userId = auth.currentUser?.uid;
     if (!userId) throw new Error("No authenticated user found");
