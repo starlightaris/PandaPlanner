@@ -32,53 +32,73 @@ export interface PlannerEvent {
 }
 
 class FirebaseService {
-  // AUTH METHODS
+  // --- AUTH METHODS ---
+
+  /**
+   * Standard Email/Password Signup
+   * Creates Auth record AND initializes Firestore document
+   */
   async signUp(email: string, password: string): Promise<User> {
-    // 1. Create the Auth record
     const credential = await createUserWithEmailAndPassword(auth, email, password);
     const user = credential.user;
 
-    // 2. Create the User Profile in Firestore
-    // We use setDoc with doc(db, 'users', user.uid) to ensure the 
-    // Document ID matches the Authentication UID.
     await setDoc(doc(db, 'users', user.uid), {
       uid: user.uid,
       email: email,
       createdAt: serverTimestamp(),
-      lastLogin: serverTimestamp()
+      lastLogin: serverTimestamp(),
+      provider: 'password'
     });
 
     return user;
   }
 
+  /**
+   * Standard Email/Password Login
+   * Updates the lastLogin timestamp in Firestore
+   */
   async logIn(email: string, password: string): Promise<User> {
     const credential = await signInWithEmailAndPassword(auth, email, password);
-    // Optional: Update last login timestamp in Firestore
     const userRef = doc(db, 'users', credential.user.uid);
-    await updateDoc(userRef, { lastLogin: serverTimestamp() });
+    
+    await updateDoc(userRef, { 
+      lastLogin: serverTimestamp() 
+    });
     
     return credential.user;
   }
 
-  async loginWithGoogle(idToken: string) {
+  /**
+   * Google Authentication
+   * Handles first-time account creation AND returning user sync
+   */
+  async loginWithGoogle(idToken: string): Promise<User> {
     const credential = GoogleAuthProvider.credential(idToken);
     const result = await signInWithCredential(auth, credential);
+    const user = result.user;
     
-    // Ensure Firestore document exists for Google users too
-    await setDoc(doc(db, 'users', result.user.uid), {
-        uid: result.user.uid,
-        email: result.user.email,
-        createdAt: serverTimestamp(),
-    }, { merge: true }); // 'merge' prevents overwriting existing data
+    // Using { merge: true } to create if missing, or update if exists
+    await setDoc(doc(db, 'users', user.uid), {
+        uid: user.uid,
+        email: user.email,
+        displayName: user.displayName, // Personalized greeting for the UI
+        photoURL: user.photoURL,       // Profile picture sync
+        lastLogin: serverTimestamp(),
+        provider: 'google.com',
+    }, { merge: true });
 
-    return result.user;
+    return user;
   }
 
   async logOut(): Promise<void> {
     await signOut(auth);
   }
 
-  // FIRESTORE METHODS
+  // --- FIRESTORE METHODS ---
+
+  /**
+   * Saves an event to the user's private schedule sub-collection
+   */
   async saveEvent(eventData: PlannerEvent) {
     const userId = auth.currentUser?.uid;
     if (!userId) throw new Error("No authenticated user found");
@@ -108,14 +128,24 @@ class FirebaseService {
     if (updatedData.startTime) formattedData.startTime = Timestamp.fromDate(updatedData.startTime);
     if (updatedData.endTime) formattedData.endTime = Timestamp.fromDate(updatedData.endTime);
     
-    return await updateDoc(eventRef, { ...formattedData, updatedAt: serverTimestamp() });
+    return await updateDoc(eventRef, { 
+      ...formattedData, 
+      updatedAt: serverTimestamp() 
+    });
   }
 
+  /**
+   * Fetches all events for the current user, sorted by start time
+   */
   async getUserEvents(): Promise<PlannerEvent[]> {
     const userId = auth.currentUser?.uid;
     if (!userId) return [];
     
-    const q = query(collection(db, 'users', userId, 'schedules'), orderBy('startTime', 'asc'));
+    const q = query(
+      collection(db, 'users', userId, 'schedules'), 
+      orderBy('startTime', 'asc')
+    );
+    
     const querySnapshot = await getDocs(q);
     return querySnapshot.docs.map(doc => ({ 
       id: doc.id, 
