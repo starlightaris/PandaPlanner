@@ -21,11 +21,84 @@ interface ImportScreenProps {
   onImportComplete?: () => void;
 }
 
+// ── LOADING ICON (moved outside component to prevent remounting) ──────────────
+function LoadingIcon({ color }: { color: string }) {
+  const spinAnim = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    Animated.loop(
+      Animated.timing(spinAnim, { toValue: 1, duration: 1000, useNativeDriver: true })
+    ).start();
+  }, []);
+  const spin = spinAnim.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '360deg'] });
+  return (
+    <Animated.View style={{ transform: [{ rotate: spin }] }}>
+      <Ionicons name="refresh-outline" size={28} color={color} />
+    </Animated.View>
+  );
+}
+
+// ── CONFLICT MODAL ────────────────────────────────────────────────────────────
+const ConflictModal = ({
+  visible,
+  eventTitle,
+  conflictTitles,
+  onAction,
+}: {
+  visible: boolean;
+  eventTitle: string;
+  conflictTitles: string;
+  onAction: (action: 'skip' | 'add') => void;
+}) => (
+  <Modal transparent visible={visible} animationType="fade">
+    <View style={conflictStyles.overlay}>
+      <View style={conflictStyles.box}>
+        <Text style={conflictStyles.title}>Schedule Conflict 🐼</Text>
+        <Text style={conflictStyles.body}>
+          <Text style={{ fontWeight: '700' }}>"{eventTitle}"</Text> overlaps with:{'\n\n'}{conflictTitles}
+        </Text>
+        <Text style={conflictStyles.question}>What should Panda do?</Text>
+        <Pressable style={conflictStyles.btnAdd} onPress={() => onAction('add')}>
+          <Text style={conflictStyles.btnAddText}>Add Anyway</Text>
+        </Pressable>
+        <Pressable style={conflictStyles.btnSkip} onPress={() => onAction('skip')}>
+          <Text style={conflictStyles.btnSkipText}>Skip This Event</Text>
+        </Pressable>
+      </View>
+    </View>
+  </Modal>
+);
+
+const conflictStyles = StyleSheet.create({
+  overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'center', alignItems: 'center' },
+  box: { backgroundColor: '#FFF', borderRadius: 24, padding: 24, marginHorizontal: 32, width: '85%', maxWidth: 360 },
+  title: { fontSize: 18, fontWeight: '700', color: '#3A3A3A', marginBottom: 12 },
+  body: { fontSize: 14, color: '#5C5C5C', lineHeight: 20, marginBottom: 8 },
+  question: { fontSize: 13, color: '#9B9B9B', marginBottom: 16 },
+  btnAdd: { backgroundColor: '#FF8787', borderRadius: 16, paddingVertical: 12, alignItems: 'center', marginBottom: 8 },
+  btnAddText: { color: '#FFF', fontWeight: '600', fontSize: 14 },
+  btnSkip: { paddingVertical: 10, alignItems: 'center' },
+  btnSkipText: { color: '#9B9B9B', fontSize: 13 },
+});
+
 export default function ImportScreen({ visible = true, onClose, onImportComplete }: ImportScreenProps) {
   const router = useRouter();
   const [importing, setImporting] = useState<string | null>(null);
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(height)).current;
+
+  // ── CONFLICT MODAL STATE ──────────────────────────────────────────────────
+  const [conflictModal, setConflictModal] = useState<{
+    visible: boolean;
+    eventTitle: string;
+    conflictTitles: string;
+    resolve: ((action: 'skip' | 'add') => void) | null;
+  }>({ visible: false, eventTitle: '', conflictTitles: '', resolve: null });
+
+  const showConflictModal = (eventTitle: string, conflictTitles: string) => {
+    return new Promise<'skip' | 'add'>((resolve) => {
+      setConflictModal({ visible: true, eventTitle, conflictTitles, resolve });
+    });
+  };
 
   useEffect(() => {
     if (visible) {
@@ -43,16 +116,16 @@ export default function ImportScreen({ visible = true, onClose, onImportComplete
 
   /**
    * Universal AI Processing Logic
-   * Sends base64 data to Gemini and saves resulting events to Firestore
-   * Includes conflict detection logic.
+   * Sends base64 data to Gemini and saves resulting events to Firestore.
+   * Uses ConflictModal for web-compatible conflict resolution.
    */
   const handleAIProcessing = async (base64: string, mimeType: string, label: string) => {
     try {
       setImporting(label.toLowerCase());
-      
-      const parsedEvents = await AIService.parseSchedule("Extract all events", { 
-        base64, 
-        mimeType 
+
+      const parsedEvents = await AIService.parseSchedule("Extract all events", {
+        base64,
+        mimeType
       });
 
       if (!parsedEvents || parsedEvents.length === 0) {
@@ -64,46 +137,30 @@ export default function ImportScreen({ visible = true, onClose, onImportComplete
 
       for (const event of parsedEvents) {
         // --- CONFLICT CHECK ---
-        const hasConflict = await FirebaseService.checkConflict(
-          new Date(event.startTime), 
-          new Date(event.endTime)
+        const conflicting = await FirebaseService.getConflictingEvents(
+          event.startTime,
+          event.endTime
         );
 
-        if (hasConflict) {
-          const userChoice = await new Promise((resolve) => {
-            Alert.alert(
-              "Schedule Conflict 🐼",
-              `"${event.title}" overlaps with an existing event. What should Panda do?`,
-              [
-                { 
-                  text: "Skip this one", 
-                  onPress: () => resolve("skip"), 
-                  style: "cancel" 
-                },
-                { 
-                  text: "Add Anyway", 
-                  onPress: () => resolve("add") 
-                }
-              ],
-              { cancelable: false }
-            );
-          });
+        if (conflicting.length > 0) {
+          const conflictTitles = conflicting.map(e => `• ${e.title}`).join('\n');
+          const userChoice = await showConflictModal(event.title, conflictTitles);
 
-          if (userChoice === "skip") {
+          if (userChoice === 'skip') {
             skippedCount++;
-            continue; // Skip saving and move to the next event
+            continue;
           }
+          // 'add' falls through and saves normally
         }
 
-        // Save event (either no conflict or user chose "Add Anyway")
         await FirebaseService.saveEvent(event);
         successCount++;
       }
 
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      
-      const statusMsg = skippedCount > 0 
-        ? `Successfully imported ${successCount} events. ${skippedCount} were skipped.`
+
+      const statusMsg = skippedCount > 0
+        ? `Successfully imported ${successCount} events. ${skippedCount} were skipped due to conflicts.`
         : `Successfully imported ${successCount} events from your ${label}.`;
 
       Alert.alert(
@@ -147,8 +204,10 @@ export default function ImportScreen({ visible = true, onClose, onImportComplete
       const base64 = await FileSystem.readAsStringAsync(asset.uri, {
         encoding: FileSystem.EncodingType.Base64,
       });
-      
-      const mimeType = label === "CSV" ? "text/csv" : "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+
+      const mimeType = label === "CSV"
+        ? "text/csv"
+        : "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
       await handleAIProcessing(base64, mimeType, label);
     }
   }
@@ -159,26 +218,13 @@ export default function ImportScreen({ visible = true, onClose, onImportComplete
     { id: 'excel', title: 'Import Excel', description: 'Import XLS or XLSX files', icon: 'grid-outline', gradient: ['#FF8787', '#FF9F9F'], onPress: () => importFile(["application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "application/vnd.ms-excel"], "Excel") },
   ];
 
-  const LoadingIcon = ({ color }: { color: string }) => {
-    const spinAnim = useRef(new Animated.Value(0)).current;
-    useEffect(() => {
-      Animated.loop(Animated.timing(spinAnim, { toValue: 1, duration: 1000, useNativeDriver: true })).start();
-    }, []);
-    const spin = spinAnim.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '360deg'] });
-    return (
-      <Animated.View style={{ transform: [{ rotate: spin }] }}>
-        <Ionicons name="refresh-outline" size={28} color={color} />
-      </Animated.View>
-    );
-  };
-
   return (
     <Modal visible={visible} transparent animationType="none" onRequestClose={handleClose}>
       <Animated.View style={[styles.overlay, { opacity: fadeAnim }]}>
         <Pressable style={styles.backdrop} onPress={handleClose} />
         <Animated.View style={[styles.modalContainer, { transform: [{ translateY: slideAnim }] }]}>
           <LinearGradient colors={['#FFFFFF', '#FFFBF5']} style={styles.modalContent}>
-            
+
             <View style={styles.header}>
               <View style={styles.headerIconContainer}>
                 <Ionicons name="cloud-upload-outline" size={28} color="#FF8787" />
@@ -195,7 +241,10 @@ export default function ImportScreen({ visible = true, onClose, onImportComplete
               {importOptions.map((option) => (
                 <Pressable key={option.id} style={styles.option} onPress={option.onPress} disabled={importing !== null}>
                   <LinearGradient colors={option.gradient as any} style={styles.optionIconContainer}>
-                    {importing === option.id ? <LoadingIcon color="#FFFFFF" /> : <Ionicons name={option.icon as any} size={28} color="#FFFFFF" />}
+                    {importing === option.id
+                      ? <LoadingIcon color="#FFFFFF" />
+                      : <Ionicons name={option.icon as any} size={28} color="#FFFFFF" />
+                    }
                   </LinearGradient>
                   <View style={styles.optionContent}>
                     <Text style={styles.optionTitle}>{option.title}</Text>
@@ -208,7 +257,7 @@ export default function ImportScreen({ visible = true, onClose, onImportComplete
 
             <View style={styles.infoCard}>
               <Text style={styles.infoText}>
-                Panda checks for conflicts automatically. If an overlap is found, you'll be asked whether to skip or double-book.
+                Panda checks for conflicts automatically. If an overlap is found, you'll be asked whether to skip or add anyway.
               </Text>
             </View>
 
@@ -218,6 +267,17 @@ export default function ImportScreen({ visible = true, onClose, onImportComplete
           </LinearGradient>
         </Animated.View>
       </Animated.View>
+
+      {/* ── CONFLICT MODAL ── */}
+      <ConflictModal
+        visible={conflictModal.visible}
+        eventTitle={conflictModal.eventTitle}
+        conflictTitles={conflictModal.conflictTitles}
+        onAction={(action) => {
+          setConflictModal(prev => ({ ...prev, visible: false }));
+          conflictModal.resolve?.(action);
+        }}
+      />
     </Modal>
   );
 }
