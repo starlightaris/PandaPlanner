@@ -18,7 +18,7 @@ WebBrowser.maybeCompleteAuthSession();
 
 export default function LoginScreen() {
   const router = useRouter();
-  const { setAccessToken, setUser } = useAuth();
+  const { setAccessToken, setUser, setLoading } = useAuth();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -93,6 +93,7 @@ export default function LoginScreen() {
           .then((user) => {
             setUser(user);
             setAccessToken(access_token);
+            setLoading(false);
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
             router.replace("/(tabs)");
           })
@@ -120,6 +121,7 @@ export default function LoginScreen() {
     try {
       const user = await FirebaseService.logIn(email, password);
       setUser(user);
+      setLoading(false);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       router.replace("/(tabs)");
     } catch (error: any) {
