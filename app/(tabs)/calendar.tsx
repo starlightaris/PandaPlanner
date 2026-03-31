@@ -1,7 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useRouter } from "expo-router";
+import { useFocusEffect, useRouter } from "expo-router";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   Alert,
@@ -20,7 +20,7 @@ import EventCard from "../(components)/EventCard";
 import { useAuth } from '../../context/AuthContext';
 import FirebaseService, { PlannerReminder } from "../../services/FirebaseService";
 
-// REMINDER CARD
+// ─── REMINDER CARD ───────────────────────────────────────────────────────────
 
 function ReminderCard({
   reminder,
@@ -92,7 +92,7 @@ function ReminderCard({
   );
 }
 
-// MAIN SCREEN
+// ─── MAIN SCREEN ─────────────────────────────────────────────────────────────
 
 export default function CalendarScreen() {
   const router = useRouter();
@@ -113,7 +113,7 @@ export default function CalendarScreen() {
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(30)).current;
 
-  // FETCH
+  // ─── FETCH ─────────────────────────────────────────────────────────────────
 
   const fetchAllEvents = useCallback(async () => {
     try {
@@ -149,9 +149,23 @@ export default function CalendarScreen() {
         startTime: new Date(event.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false }),
         endTime: new Date(event.endTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false }),
         source: "App",
+        googleEventId: event.googleEventId ?? null,
       }));
 
-      setEvents([...googleEvents, ...formattedFirebase]);
+      // Deduplicate: filter Google events already imported into Firestore
+      const firestoreGoogleIds = new Set(
+        formattedFirebase
+          .filter((e: any) => e.googleEventId)
+          .map((e: any) => e.googleEventId)
+      );
+      const deduplicatedGoogle = googleEvents.filter((e: any) => !firestoreGoogleIds.has(e.id));
+      const seen = new Set<string>();
+      const merged = [...deduplicatedGoogle, ...formattedFirebase].filter(e => {
+        if (seen.has(e.id)) return false;
+        seen.add(e.id);
+        return true;
+      });
+      setEvents(merged);
     } catch (error) {
       console.error("Calendar Fetch Error:", error);
     }
@@ -166,14 +180,21 @@ export default function CalendarScreen() {
     }
   }, []);
 
+  // Run entrance animation once on mount
   useEffect(() => {
-    fetchAllEvents();
-    fetchReminders();
     Animated.parallel([
       Animated.timing(fadeAnim, { toValue: 1, duration: 500, useNativeDriver: true }),
       Animated.timing(slideAnim, { toValue: 0, duration: 500, useNativeDriver: true }),
     ]).start();
-  }, [fetchAllEvents, fetchReminders]);
+  }, []);
+
+  // Re-fetch every time this screen comes into focus (e.g. returning from add-event)
+  useFocusEffect(
+    useCallback(() => {
+      fetchAllEvents();
+      fetchReminders();
+    }, [fetchAllEvents, fetchReminders])
+  );
 
   const onRefresh = () => {
     setRefreshing(true);
@@ -181,7 +202,7 @@ export default function CalendarScreen() {
     Promise.all([fetchAllEvents(), fetchReminders()]).finally(() => setRefreshing(false));
   };
 
-  // CONFLICT LOGIC
+  // ─── CONFLICT LOGIC ────────────────────────────────────────────────────────
 
   const getConflictedIds = useCallback(() => {
     const conflicted = new Set<string>();
@@ -206,7 +227,7 @@ export default function CalendarScreen() {
 
   const conflicts = getConflictedIds();
 
-  // EVENT ACTIONS
+  // ─── EVENT ACTIONS ─────────────────────────────────────────────────────────
 
   const handleEventPress = (event: any) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -278,7 +299,7 @@ export default function CalendarScreen() {
     });
   };
 
-  // REMINDER ACTIONS
+  // ─── REMINDER ACTIONS ──────────────────────────────────────────────────────
 
   const handleReminderToggle = async (id: string, current: boolean) => {
     try {
@@ -300,7 +321,7 @@ export default function CalendarScreen() {
     }
   };
 
-  // VIEW HELPERS
+  // ─── VIEW HELPERS ──────────────────────────────────────────────────────────
 
   const getWeekDays = (dateString: string) => {
     const refDate = new Date(dateString);
@@ -329,7 +350,7 @@ export default function CalendarScreen() {
     return marked;
   };
 
-  // SWIPEABLE EVENT ROW
+  // ─── SWIPEABLE EVENT ROW ───────────────────────────────────────────────────
 
   const renderEventWithSwipe = (event: any) => {
     const isAppEvent = event.source === "App";
@@ -366,7 +387,7 @@ export default function CalendarScreen() {
     );
   };
 
-  // REMINDERS SECTION
+  // ─── REMINDERS SECTION ─────────────────────────────────────────────────────
 
   // Show reminders due on or before selectedDate
   const dayReminders = reminders.filter(r => {
@@ -374,7 +395,7 @@ export default function CalendarScreen() {
     return rDate === selectedDate;
   });
 
-  // WEEK VIEW
+  // ─── WEEK VIEW ─────────────────────────────────────────────────────────────
 
   const renderWeekView = () => {
     const weekDays = getWeekDays(selectedDate);
@@ -438,7 +459,7 @@ export default function CalendarScreen() {
     </View>
   );
 
-  // RENDER
+  // ─── RENDER ────────────────────────────────────────────────────────────────
 
   const dayEvents = events.filter(e => e.date === selectedDate);
 
@@ -518,7 +539,7 @@ export default function CalendarScreen() {
   );
 }
 
-// STYLES
+// ─── STYLES ──────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
   container: { flex: 1 },

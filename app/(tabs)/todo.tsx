@@ -187,9 +187,6 @@ export default function TodoScreen() {
     );
   };
 
-  // FIX 1: null guard on editingId before calling Firebase
-  // FIX 2: error handling so a failed write isn't silent
-  // FIX 3: shared save logic used by both onSubmitEditing and onBlur
   const saveEdit = async () => {
     if (!editingText.trim() || !user || !editingId) return;
 

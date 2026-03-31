@@ -3,8 +3,10 @@ import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useFocusEffect, useRouter } from "expo-router";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Alert, Animated, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
 
+import { Alert, Animated, Modal, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
+
+// --- PROJECT IMPORTS ---
 import EventCard from "../(components)/EventCard";
 import { useAuth } from '../../context/AuthContext';
 import FirebaseService from "../../services/FirebaseService";
@@ -12,6 +14,79 @@ import MLService, { Suggestion } from "../../services/MLService";
 
 // All known event categories including Google Sync source
 const CATEGORY_TAGS = ['Work', 'Personal', 'Health', 'Study', 'Shopping', 'General', 'Google Sync'];
+
+// ── CONFLICT MODAL ──────────────────────────────────────────────────────────
+const ConflictModal = ({
+  visible,
+  tappedEvent,
+  conflictingEvents,
+  onAction,
+}: {
+  visible: boolean;
+  tappedEvent: any | null;
+  conflictingEvents: any[];
+  onAction: (action: 'keep' | 'replace' | 'reschedule' | 'cancel') => void;
+}) => {
+  if (!tappedEvent) return null;
+  const conflictTitles = conflictingEvents.map(e => `• ${e.title}`).join('\n');
+  const isAppEvent = tappedEvent.source === 'App';
+
+  return (
+    <Modal transparent visible={visible} animationType="fade">
+      <View style={conflictStyles.overlay}>
+        <View style={conflictStyles.box}>
+          <View style={conflictStyles.iconRow}>
+            <Text style={conflictStyles.icon}>⚠️</Text>
+            <Text style={conflictStyles.title}>Schedule Conflict</Text>
+          </View>
+          <Text style={conflictStyles.body}>
+            <Text style={{ fontWeight: '700' }}>"{tappedEvent.title}"</Text>
+            {' overlaps with:\n\n'}{conflictTitles}
+          </Text>
+          <Text style={conflictStyles.question}>What would you like to do?</Text>
+
+          {isAppEvent && (
+            <Pressable style={conflictStyles.btnReschedule} onPress={() => onAction('reschedule')}>
+              <Ionicons name="calendar-outline" size={16} color="#FF8787" />
+              <Text style={conflictStyles.btnRescheduleText}>Reschedule This Event</Text>
+            </Pressable>
+          )}
+
+          <Pressable style={conflictStyles.btnReplace} onPress={() => onAction('replace')}>
+            <Ionicons name="trash-outline" size={16} color="#FFF" />
+            <Text style={conflictStyles.btnReplaceText}>Remove Conflicting Events</Text>
+          </Pressable>
+
+          <Pressable style={conflictStyles.btnKeep} onPress={() => onAction('keep')}>
+            <Text style={conflictStyles.btnKeepText}>Keep All</Text>
+          </Pressable>
+
+          <Pressable style={conflictStyles.btnCancel} onPress={() => onAction('cancel')}>
+            <Text style={conflictStyles.btnCancelText}>Dismiss</Text>
+          </Pressable>
+        </View>
+      </View>
+    </Modal>
+  );
+};
+
+const conflictStyles = StyleSheet.create({
+  overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'center', alignItems: 'center' },
+  box: { backgroundColor: '#FFF', borderRadius: 28, padding: 24, marginHorizontal: 28, width: '88%', maxWidth: 360 },
+  iconRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 14 },
+  icon: { fontSize: 22 },
+  title: { fontSize: 18, fontWeight: '700', color: '#3A3A3A' },
+  body: { fontSize: 14, color: '#5C5C5C', lineHeight: 22, marginBottom: 8 },
+  question: { fontSize: 13, color: '#9B9B9B', marginBottom: 18 },
+  btnReschedule: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: '#FFF5F0', borderRadius: 16, paddingVertical: 13, marginBottom: 10, borderWidth: 1, borderColor: '#FFE5E5' },
+  btnRescheduleText: { color: '#FF8787', fontWeight: '600', fontSize: 14 },
+  btnReplace: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: '#FF8787', borderRadius: 16, paddingVertical: 13, marginBottom: 10 },
+  btnReplaceText: { color: '#FFF', fontWeight: '600', fontSize: 14 },
+  btnKeep: { backgroundColor: '#F5F5F5', borderRadius: 16, paddingVertical: 13, alignItems: 'center', marginBottom: 8 },
+  btnKeepText: { color: '#5C5C5C', fontWeight: '500', fontSize: 14 },
+  btnCancel: { paddingVertical: 10, alignItems: 'center' },
+  btnCancelText: { color: '#C7C7C7', fontSize: 13 },
+});
 
 export default function Home() {
   const router = useRouter();
@@ -31,6 +106,15 @@ export default function Home() {
   const [selectedFilter, setSelectedFilter] = useState('recents');
   // null means no category filter active
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+
+  // ── CONFLICT MODAL STATE ──────────────────────────────────────────────────
+  // Stores the tapped event + its conflicting peers directly in state.
+  // Modal action handlers read from this — no Promise-in-state needed.
+  const [conflictModal, setConflictModal] = useState<{
+    visible: boolean;
+    tappedEvent: any | null;
+    conflictingEvents: any[];
+  }>({ visible: false, tappedEvent: null, conflictingEvents: [] });
 
   const addButtonScale = useRef(new Animated.Value(1)).current;
   const addButtonRotate = useRef(new Animated.Value(0)).current;
@@ -77,10 +161,28 @@ export default function Home() {
           endTime: end.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false }),
           category: event.category || "General",
           source: "App",
+          googleEventId: event.googleEventId ?? null,
         };
       });
 
-      const combined = [...googleEvents, ...formattedFirebase].sort(
+      // Deduplicate: Firestore events synced FROM Google have a googleEventId.
+      // The live Google fetch returns those same events again — filter them out.
+      const firestoreGoogleIds = new Set(
+        formattedFirebase
+          .filter((e: any) => e.googleEventId)
+          .map((e: any) => e.googleEventId)
+      );
+      const deduplicatedGoogle = googleEvents.filter(e => !firestoreGoogleIds.has(e.id));
+
+      // Also deduplicate by id in case fetch runs twice (StrictMode / focus)
+      const seen = new Set<string>();
+      const allEvents = [...deduplicatedGoogle, ...formattedFirebase].filter(e => {
+        if (seen.has(e.id)) return false;
+        seen.add(e.id);
+        return true;
+      });
+
+      const combined = allEvents.sort(
         (a, b) => new Date(`${a.date}T${a.startTime}`).getTime() - new Date(`${b.date}T${b.startTime}`).getTime()
       );
 
@@ -150,7 +252,7 @@ export default function Home() {
 
   const today = new Date().toISOString().split('T')[0];
 
-  // TIME FILTER 
+  // TIME FILTER
 
   const timeFilteredEvents = events.filter(event => {
     if (selectedFilter === 'recents') {
@@ -220,6 +322,47 @@ export default function Home() {
 
   // RENDER
 
+  // ── CONFLICT PRESS HANDLER ────────────────────────────────────────────────
+  const handleEventPress = (event: any) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+
+    if (conflicts.has(event.id)) {
+      const conflictingEvents = events.filter(e =>
+        e.id !== event.id &&
+        e.date === event.date &&
+        e.startTime < event.endTime &&
+        event.startTime < e.endTime
+      );
+      setConflictModal({ visible: true, tappedEvent: event, conflictingEvents });
+    } else {
+      Alert.alert(
+        event.title,
+        `📍 ${event.location || 'No location'}\n🕐 ${event.startTime} – ${event.endTime}`
+      );
+    }
+  };
+
+  // ── CONFLICT MODAL ACTIONS ────────────────────────────────────────────────
+  const handleConflictAction = async (action: 'keep' | 'replace' | 'reschedule' | 'cancel') => {
+    const { tappedEvent, conflictingEvents } = conflictModal;
+    setConflictModal({ visible: false, tappedEvent: null, conflictingEvents: [] });
+
+    if (!tappedEvent) return;
+
+    if (action === 'replace') {
+      for (const e of conflictingEvents) {
+        if (e.source === 'App') {
+          await FirebaseService.deleteEvent(e.id);
+        }
+      }
+      await fetchAllEvents();
+    } else if (action === 'reschedule') {
+      if (tappedEvent.source === 'App') {
+        router.push({ pathname: '/add-event', params: { id: tappedEvent.id, edit: 'true' } as any });
+      }
+    }
+  };
+
   return (
     <LinearGradient colors={['#FFFFFF', '#FFFBF5']} style={styles.container}>
       <View style={styles.decorativeBlob1} />
@@ -245,20 +388,12 @@ export default function Home() {
               </View>
             </View>
 
-            {/* FIXED: Single Animated.View handling both scale and rotation */}
-            <Animated.View
-              style={[
-                styles.addButtonWrapper,
-                {
-                  transform: [
-                    { scale: addButtonScale },
-                    { rotate: rotateInterpolate }
-                  ]
-                }
-              ]}
-            >
+            {/* Scale and rotate must be on separate Animated.Views on iOS */}
+            <Animated.View style={[styles.addButtonWrapper, { transform: [{ scale: addButtonScale }] }]}>
               <Pressable onPress={handleAddPress} style={styles.addButton}>
-                <Ionicons name="add" size={28} color="#FF8787" />
+                <Animated.View style={{ transform: [{ rotate: rotateInterpolate }] }}>
+                  <Ionicons name="add" size={28} color="#FF8787" />
+                </Animated.View>
               </Pressable>
             </Animated.View>
           </View>
@@ -419,13 +554,7 @@ export default function Home() {
                   key={event.id}
                   {...event}
                   hasConflict={conflicts.has(event.id)}
-                  onPress={() => {
-                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                    Alert.alert(
-                      event.title,
-                      `${conflicts.has(event.id) ? "⚠️ CONFLICT DETECTED\n" : ""}📍 ${event.location}\n🕐 ${event.startTime} – ${event.endTime}`
-                    );
-                  }}
+                  onPress={() => handleEventPress(event)}
                 />
               ))}
             </View>
@@ -461,6 +590,14 @@ export default function Home() {
           </View>
         </View>
       </ScrollView>
+
+      {/* ── CONFLICT MODAL ── */}
+      <ConflictModal
+        visible={conflictModal.visible}
+        tappedEvent={conflictModal.tappedEvent}
+        conflictingEvents={conflictModal.conflictingEvents}
+        onAction={handleConflictAction}
+      />
     </LinearGradient>
   );
 }
