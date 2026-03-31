@@ -108,7 +108,7 @@ class FirebaseService {
     return docRef.id;
   }
 
-  // EVENTS 
+  // ─── EVENTS ──────────────────────────────────────────────────────────────────
 
   async addEvent(eventData: PlannerEvent, syncToGoogle: boolean = false, accessToken?: string) {
     const eventId = await this.addToCollection('schedules', eventData);
@@ -144,8 +144,34 @@ class FirebaseService {
     })) as PlannerEvent[];
   }
 
+  async getEventById(eventId: string): Promise<PlannerEvent | null> {
+    const userId = auth.currentUser?.uid;
+    if (!userId) return null;
+    const snap = await getDoc(doc(db, 'users', userId, 'schedules', eventId));
+    if (!snap.exists()) return null;
+    const data = snap.data();
+    return {
+      id: snap.id,
+      ...data,
+      startTime: (data.startTime as Timestamp).toDate(),
+      endTime: (data.endTime as Timestamp).toDate(),
+    } as PlannerEvent;
+  }
+
+  async updateEvent(eventId: string, eventData: Partial<PlannerEvent>) {
+    const userId = auth.currentUser?.uid;
+    if (!userId) throw new Error('No authenticated user found');
+    const ref = doc(db, 'users', userId, 'schedules', eventId);
+    const formattedData: any = { ...eventData };
+    if (formattedData.startTime instanceof Date) formattedData.startTime = Timestamp.fromDate(formattedData.startTime);
+    if (formattedData.endTime instanceof Date) formattedData.endTime = Timestamp.fromDate(formattedData.endTime);
+    return await updateDoc(ref, { ...formattedData, updatedAt: serverTimestamp() });
+  }
+
   async deleteEvent(id: string) {
-    return await this.deleteItem(id, 'reminders'); // use deleteItem with correct collection
+    const userId = auth.currentUser?.uid;
+    if (!userId) throw new Error('No authenticated user found');
+    return await deleteDoc(doc(db, 'users', userId, 'schedules', id));
   }
 
   async getConflictingEvents(startTime: Date, endTime: Date): Promise<PlannerEvent[]> {
@@ -187,7 +213,7 @@ class FirebaseService {
     return await updateDoc(eventRef, { syncStatus: status });
   }
 
-  // TASKS & REMINDERS
+  // ─── TASKS & REMINDERS ───────────────────────────────────────────────────────
 
   async addTask(taskData: PlannerTask) {
     return await this.addToCollection('tasks', taskData);
@@ -236,7 +262,7 @@ class FirebaseService {
     return await deleteDoc(doc(db, 'users', userId, type, id));
   }
 
-  // TODOS
+  // ─── TODOS ───────────────────────────────────────────────────────────────────
 
   async getTodos(userId: string) {
     const colRef = collection(db, "users", userId, "todos");

@@ -6,6 +6,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import {
   Alert,
   Animated,
+  Modal,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -109,6 +110,12 @@ export default function CalendarScreen() {
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   const [refreshing, setRefreshing] = useState(false);
   const [viewMode, setViewMode] = useState<'day' | 'week' | 'month'>('month');
+  const [monthYearPickerVisible, setMonthYearPickerVisible] = useState(false);
+  // currentCalMonth tracks which month the calendar is showing (for the picker)
+  const [currentCalMonth, setCurrentCalMonth] = useState(() => {
+    const now = new Date();
+    return { year: now.getFullYear(), month: now.getMonth() + 1 };
+  });
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(30)).current;
@@ -204,6 +211,13 @@ export default function CalendarScreen() {
 
   // ─── CONFLICT LOGIC ────────────────────────────────────────────────────────
 
+  // Convert "H:MM" or "HH:MM" string to total minutes — iOS toLocaleTimeString
+  // can omit the leading zero, breaking plain string comparison.
+  const toMinutes = (t: string) => {
+    const [h, m] = t.split(':').map(Number);
+    return h * 60 + m;
+  };
+
   const getConflictedIds = useCallback(() => {
     const conflicted = new Set<string>();
     const eventsByDate: { [key: string]: any[] } = {};
@@ -215,7 +229,9 @@ export default function CalendarScreen() {
       for (let i = 0; i < dayEvents.length; i++) {
         for (let j = i + 1; j < dayEvents.length; j++) {
           const e1 = dayEvents[i], e2 = dayEvents[j];
-          if (e1.startTime < e2.endTime && e2.startTime < e1.endTime) {
+          const s1 = toMinutes(e1.startTime), end1 = toMinutes(e1.endTime);
+          const s2 = toMinutes(e2.startTime), end2 = toMinutes(e2.endTime);
+          if (s1 < end2 && s2 < end1) {
             conflicted.add(e1.id);
             conflicted.add(e2.id);
           }
@@ -502,12 +518,29 @@ export default function CalendarScreen() {
           {viewMode === 'month' && (
             <View style={styles.calendarCard}>
               <Calendar
+                current={`${currentCalMonth.year}-${String(currentCalMonth.month).padStart(2, '0')}-01`}
                 onDayPress={(day) => setSelectedDate(day.dateString)}
+                onMonthChange={(month) => setCurrentCalMonth({ year: month.year, month: month.month })}
                 markedDates={getMarkedDates()}
+                renderHeader={(date) => {
+                  const label = new Date(date).toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+                  return (
+                    <Pressable
+                      onPress={() => setMonthYearPickerVisible(true)}
+                      style={styles.calHeaderBtn}
+                    >
+                      <Text style={styles.calHeaderText}>{label}</Text>
+                      <Ionicons name="chevron-down" size={16} color="#FF8787" />
+                    </Pressable>
+                  );
+                }}
                 theme={{
                   todayTextColor: '#FF8787',
                   arrowColor: '#FF8787',
                   selectedDayBackgroundColor: '#FF8787',
+                  'stylesheet.calendar.header': {
+                    header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 10, marginBottom: 8 },
+                  },
                 }}
               />
             </View>
@@ -535,9 +568,87 @@ export default function CalendarScreen() {
           )}
         </ScrollView>
       </Animated.View>
+      {/* ── MONTH / YEAR PICKER ── */}
+      <MonthYearPicker
+        visible={monthYearPickerVisible}
+        year={currentCalMonth.year}
+        month={currentCalMonth.month}
+        onSelect={(year, month) => {
+          setCurrentCalMonth({ year, month });
+          setMonthYearPickerVisible(false);
+        }}
+        onClose={() => setMonthYearPickerVisible(false)}
+      />
     </LinearGradient>
   );
 }
+
+// ─── MONTH YEAR PICKER ──────────────────────────────────────────────────────
+
+const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+
+function MonthYearPicker({
+  visible, year, month, onSelect, onClose,
+}: {
+  visible: boolean;
+  year: number;
+  month: number; // 1-based
+  onSelect: (year: number, month: number) => void;
+  onClose: () => void;
+}) {
+  const [pickerYear, setPickerYear] = useState(year);
+
+  useEffect(() => { setPickerYear(year); }, [visible]);
+
+  return (
+    <Modal transparent visible={visible} animationType="fade">
+      <Pressable style={myStyles.overlay} onPress={onClose}>
+        <Pressable style={myStyles.box} onPress={e => e.stopPropagation()}>
+          {/* Year row */}
+          <View style={myStyles.yearRow}>
+            <Pressable onPress={() => setPickerYear(y => y - 1)} style={myStyles.yearBtn}>
+              <Ionicons name="chevron-back" size={20} color="#FF8787" />
+            </Pressable>
+            <Text style={myStyles.yearText}>{pickerYear}</Text>
+            <Pressable onPress={() => setPickerYear(y => y + 1)} style={myStyles.yearBtn}>
+              <Ionicons name="chevron-forward" size={20} color="#FF8787" />
+            </Pressable>
+          </View>
+          {/* Month grid */}
+          <View style={myStyles.monthGrid}>
+            {MONTHS.map((m, i) => {
+              const isActive = pickerYear === year && i + 1 === month;
+              return (
+                <Pressable
+                  key={m}
+                  style={[myStyles.monthCell, isActive && myStyles.monthCellActive]}
+                  onPress={() => onSelect(pickerYear, i + 1)}
+                >
+                  <Text style={[myStyles.monthText, isActive && myStyles.monthTextActive]}>
+                    {m.slice(0, 3)}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+        </Pressable>
+      </Pressable>
+    </Modal>
+  );
+}
+
+const myStyles = StyleSheet.create({
+  overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'center', alignItems: 'center' },
+  box: { backgroundColor: '#FFF', borderRadius: 24, padding: 20, width: '80%' },
+  yearRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 },
+  yearBtn: { padding: 8 },
+  yearText: { fontSize: 20, fontWeight: '700', color: '#3A3A3A' },
+  monthGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  monthCell: { width: '30%', paddingVertical: 10, borderRadius: 12, alignItems: 'center', backgroundColor: '#F5F5F5' },
+  monthCellActive: { backgroundColor: '#FF8787' },
+  monthText: { fontSize: 14, color: '#5C5C5C', fontWeight: '500' },
+  monthTextActive: { color: '#FFF', fontWeight: '700' },
+});
 
 // ─── STYLES ──────────────────────────────────────────────────────────────────
 
@@ -621,4 +732,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#FF8787', justifyContent: 'center', alignItems: 'center',
     width: 56, borderRadius: 12, marginBottom: 10,
   },
+  calHeaderBtn: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  calHeaderText: { fontSize: 17, fontWeight: '700', color: '#3A3A3A' },
 });
