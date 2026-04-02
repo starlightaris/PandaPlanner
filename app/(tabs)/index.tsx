@@ -12,80 +12,52 @@ import { useAuth } from '../../context/AuthContext';
 import FirebaseService from "../../services/FirebaseService";
 import MLService, { Suggestion } from "../../services/MLService";
 
-// All known event categories including Google Sync source
-const CATEGORY_TAGS = ['Work', 'Personal', 'Health', 'Study', 'Shopping', 'General', 'Google Sync'];
-
-// ── CONFLICT MODAL ──────────────────────────────────────────────────────────
+// ── CONFLICT MODAL ────────────────────────────────────────────────────────────
 const ConflictModal = ({
   visible,
-  tappedEvent,
-  conflictingEvents,
+  eventTitle,
+  conflictTitles,
   onAction,
 }: {
   visible: boolean;
-  tappedEvent: any | null;
-  conflictingEvents: any[];
-  onAction: (action: 'keep' | 'replace' | 'reschedule' | 'cancel') => void;
-}) => {
-  if (!tappedEvent) return null;
-  const conflictTitles = conflictingEvents.map(e => `• ${e.title}`).join('\n');
-  const isAppEvent = tappedEvent.source === 'App';
-
-  return (
-    <Modal transparent visible={visible} animationType="fade">
-      <View style={conflictStyles.overlay}>
-        <View style={conflictStyles.box}>
-          <View style={conflictStyles.iconRow}>
-            <Text style={conflictStyles.icon}>⚠️</Text>
-            <Text style={conflictStyles.title}>Schedule Conflict</Text>
-          </View>
-          <Text style={conflictStyles.body}>
-            <Text style={{ fontWeight: '700' }}>"{tappedEvent.title}"</Text>
-            {' overlaps with:\n\n'}{conflictTitles}
-          </Text>
-          <Text style={conflictStyles.question}>What would you like to do?</Text>
-
-          {isAppEvent && (
-            <Pressable style={conflictStyles.btnReschedule} onPress={() => onAction('reschedule')}>
-              <Ionicons name="calendar-outline" size={16} color="#FF8787" />
-              <Text style={conflictStyles.btnRescheduleText}>Reschedule This Event</Text>
-            </Pressable>
-          )}
-
-          <Pressable style={conflictStyles.btnReplace} onPress={() => onAction('replace')}>
-            <Ionicons name="trash-outline" size={16} color="#FFF" />
-            <Text style={conflictStyles.btnReplaceText}>Remove Conflicting Events</Text>
-          </Pressable>
-
-          <Pressable style={conflictStyles.btnKeep} onPress={() => onAction('keep')}>
-            <Text style={conflictStyles.btnKeepText}>Keep All</Text>
-          </Pressable>
-
-          <Pressable style={conflictStyles.btnCancel} onPress={() => onAction('cancel')}>
-            <Text style={conflictStyles.btnCancelText}>Dismiss</Text>
-          </Pressable>
-        </View>
+  eventTitle: string;
+  conflictTitles: string;
+  onAction: (action: 'cancel' | 'keep' | 'replace') => void;
+}) => (
+  <Modal transparent visible={visible} animationType="fade">
+    <View style={conflictStyles.overlay}>
+      <View style={conflictStyles.box}>
+        <Text style={conflictStyles.title}>Schedule Conflict 🐼</Text>
+        <Text style={conflictStyles.body}>
+          <Text style={{ fontWeight: '700' }}>"{eventTitle}"</Text> overlaps with:{'\n\n'}{conflictTitles}
+        </Text>
+        <Text style={conflictStyles.question}>What would you like to do?</Text>
+        <Pressable style={conflictStyles.btnKeep} onPress={() => onAction('keep')}>
+          <Text style={conflictStyles.btnKeepText}>Keep Both</Text>
+        </Pressable>
+        <Pressable style={conflictStyles.btnReplace} onPress={() => onAction('replace')}>
+          <Text style={conflictStyles.btnReplaceText}>Replace Existing</Text>
+        </Pressable>
+        <Pressable style={conflictStyles.btnCancel} onPress={() => onAction('cancel')}>
+          <Text style={conflictStyles.btnCancelText}>Dismiss</Text>
+        </Pressable>
       </View>
-    </Modal>
-  );
-};
+    </View>
+  </Modal>
+);
 
 const conflictStyles = StyleSheet.create({
-  overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'center', alignItems: 'center' },
-  box: { backgroundColor: '#FFF', borderRadius: 28, padding: 24, marginHorizontal: 28, width: '88%', maxWidth: 360 },
-  iconRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 14 },
-  icon: { fontSize: 22 },
-  title: { fontSize: 18, fontWeight: '700', color: '#3A3A3A' },
-  body: { fontSize: 14, color: '#5C5C5C', lineHeight: 22, marginBottom: 8 },
-  question: { fontSize: 13, color: '#9B9B9B', marginBottom: 18 },
-  btnReschedule: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: '#FFF5F0', borderRadius: 16, paddingVertical: 13, marginBottom: 10, borderWidth: 1, borderColor: '#FFE5E5' },
-  btnRescheduleText: { color: '#FF8787', fontWeight: '600', fontSize: 14 },
-  btnReplace: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: '#FF8787', borderRadius: 16, paddingVertical: 13, marginBottom: 10 },
+  overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'center', alignItems: 'center' },
+  box: { backgroundColor: '#FFF', borderRadius: 24, padding: 24, marginHorizontal: 32, width: '85%', maxWidth: 360 },
+  title: { fontSize: 18, fontWeight: '700', color: '#3A3A3A', marginBottom: 12 },
+  body: { fontSize: 14, color: '#5C5C5C', lineHeight: 20, marginBottom: 8 },
+  question: { fontSize: 13, color: '#9B9B9B', marginBottom: 16 },
+  btnKeep: { backgroundColor: '#FFF5F0', borderRadius: 16, paddingVertical: 12, alignItems: 'center', marginBottom: 8, borderWidth: 1, borderColor: '#FFE5E5' },
+  btnKeepText: { color: '#FF8787', fontWeight: '600', fontSize: 14 },
+  btnReplace: { backgroundColor: '#FF8787', borderRadius: 16, paddingVertical: 12, alignItems: 'center', marginBottom: 8 },
   btnReplaceText: { color: '#FFF', fontWeight: '600', fontSize: 14 },
-  btnKeep: { backgroundColor: '#F5F5F5', borderRadius: 16, paddingVertical: 13, alignItems: 'center', marginBottom: 8 },
-  btnKeepText: { color: '#5C5C5C', fontWeight: '500', fontSize: 14 },
   btnCancel: { paddingVertical: 10, alignItems: 'center' },
-  btnCancelText: { color: '#C7C7C7', fontSize: 13 },
+  btnCancelText: { color: '#9B9B9B', fontSize: 13 },
 });
 
 export default function Home() {
@@ -115,6 +87,21 @@ export default function Home() {
     tappedEvent: any | null;
     conflictingEvents: any[];
   }>({ visible: false, tappedEvent: null, conflictingEvents: [] });
+
+  // ── CONFLICT MODAL STATE ──────────────────────────────────────────────────
+  const [conflictModal, setConflictModal] = useState<{
+    visible: boolean;
+    eventTitle: string;
+    conflictTitles: string;
+    conflictIds: string[];
+    resolve: ((action: 'cancel' | 'keep' | 'replace') => void) | null;
+  }>({ visible: false, eventTitle: '', conflictTitles: '', conflictIds: [], resolve: null });
+
+  const showConflictModal = (eventTitle: string, conflictTitles: string, conflictIds: string[]) => {
+    return new Promise<'cancel' | 'keep' | 'replace'>((resolve) => {
+      setConflictModal({ visible: true, eventTitle, conflictTitles, conflictIds, resolve });
+    });
+  };
 
   const addButtonScale = useRef(new Animated.Value(1)).current;
   const addButtonRotate = useRef(new Animated.Value(0)).current;
@@ -307,59 +294,39 @@ export default function Home() {
     }
   };
 
-  const getCategoryColor = (cat: string) => {
-    const map: Record<string, string> = {
-      Work: '#FF8787',
-      Personal: '#9BD8EC',
-      Health: '#A8D5A2',
-      Study: '#FFB347',
-      Shopping: '#C3B1E1',
-      General: '#9B9B9B',
-      'Google Sync': '#4285F4',
-    };
-    return map[cat] ?? '#9B9B9B';
-  };
-
-  // RENDER
-
   // ── CONFLICT PRESS HANDLER ────────────────────────────────────────────────
-  const handleEventPress = (event: any) => {
+  const handleEventPress = async (event: any) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
-    if (conflicts.has(event.id)) {
-      const conflictingEvents = events.filter(e =>
+    if (conflicts.has(event.id) && event.source === 'App') {
+      // Find all events that overlap with this one on the same day
+      const conflictingEvents = filteredEvents.filter(e =>
         e.id !== event.id &&
         e.date === event.date &&
         e.startTime < event.endTime &&
         event.startTime < e.endTime
       );
-      setConflictModal({ visible: true, tappedEvent: event, conflictingEvents });
+      const conflictTitles = conflictingEvents.map(e => `• ${e.title}`).join('\n');
+      const conflictIds = conflictingEvents.map(e => e.id);
+
+      const action = await showConflictModal(event.title, conflictTitles, conflictIds);
+
+      if (action === 'replace') {
+        // Only delete App events — Google events can't be deleted from here
+        for (const e of conflictingEvents) {
+          if (e.source === 'App' && e.id) {
+            await FirebaseService.deleteEvent(e.id);
+          }
+        }
+        await fetchAllEvents();
+      }
+      // 'keep' and 'cancel' dismiss the modal with no further action
     } else {
+      // Non-conflicting or Google event — show basic info
       Alert.alert(
         event.title,
-        `📍 ${event.location || 'No location'}\n🕐 ${event.startTime} – ${event.endTime}`
+        `${conflicts.has(event.id) ? "⚠️ CONFLICT DETECTED\n" : ""}Location: ${event.location}\nTime: ${event.startTime} - ${event.endTime}`
       );
-    }
-  };
-
-  // ── CONFLICT MODAL ACTIONS ────────────────────────────────────────────────
-  const handleConflictAction = async (action: 'keep' | 'replace' | 'reschedule' | 'cancel') => {
-    const { tappedEvent, conflictingEvents } = conflictModal;
-    setConflictModal({ visible: false, tappedEvent: null, conflictingEvents: [] });
-
-    if (!tappedEvent) return;
-
-    if (action === 'replace') {
-      for (const e of conflictingEvents) {
-        if (e.source === 'App') {
-          await FirebaseService.deleteEvent(e.id);
-        }
-      }
-      await fetchAllEvents();
-    } else if (action === 'reschedule') {
-      if (tappedEvent.source === 'App') {
-        router.push({ pathname: '/add-event', params: { id: tappedEvent.id, edit: 'true' } as any });
-      }
     }
   };
 
@@ -594,9 +561,12 @@ export default function Home() {
       {/* ── CONFLICT MODAL ── */}
       <ConflictModal
         visible={conflictModal.visible}
-        tappedEvent={conflictModal.tappedEvent}
-        conflictingEvents={conflictModal.conflictingEvents}
-        onAction={handleConflictAction}
+        eventTitle={conflictModal.eventTitle}
+        conflictTitles={conflictModal.conflictTitles}
+        onAction={(action) => {
+          setConflictModal(prev => ({ ...prev, visible: false }));
+          conflictModal.resolve?.(action);
+        }}
       />
     </LinearGradient>
   );

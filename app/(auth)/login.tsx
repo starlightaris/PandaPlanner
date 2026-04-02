@@ -19,7 +19,7 @@ WebBrowser.maybeCompleteAuthSession();
 
 export default function LoginScreen() {
   const router = useRouter();
-  const { setAccessToken, setUser } = useAuth();
+  const { setAccessToken, setUser, setLoading } = useAuth();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -143,6 +143,7 @@ useEffect(() => {
     try {
       const user = await FirebaseService.logIn(email, password);
       setUser(user);
+      setLoading(false);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       router.replace("/(tabs)");
     } catch (error: any) {

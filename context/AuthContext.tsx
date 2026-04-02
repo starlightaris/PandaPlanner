@@ -1,15 +1,14 @@
-import { User, onAuthStateChanged } from 'firebase/auth';
-import React, { ReactNode, createContext, useContext, useEffect, useState } from 'react';
-import { auth } from '../services/FirebaseService';
+import React, { createContext, ReactNode, useContext, useState } from 'react';
 
 interface AuthContextType {
   user: User | null;
   setUser: (user: User | null) => void;
   accessToken: string | null;
   setAccessToken: (token: string | null) => void;
-  googleSyncEnabled: boolean;
-  setGoogleSyncEnabled: (enabled: boolean) => void;
-  isLoading: boolean;
+  user: any;
+  setUser: (user: any) => void;
+  loading: boolean;
+  setLoading: (loading: boolean) => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -17,27 +16,11 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [accessToken, setAccessToken] = useState<string | null>(null);
-  const [googleSyncEnabled, setGoogleSyncEnabled] = useState(true);
-  const [isLoading, setIsLoading] = useState(true);
-
-  useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
-      setUser(firebaseUser);
-      setIsLoading(false);
-    });
-    return unsubscribe;
-  }, []);
+  const [user, setUser] = useState<any>(null);
+  const [loading, setLoading] = useState<boolean>(true);
 
   return (
-    <AuthContext.Provider value={{
-      user,
-      setUser,
-      accessToken,
-      setAccessToken,
-      googleSyncEnabled, 
-      setGoogleSyncEnabled,
-      isLoading
-    }}>
+    <AuthContext.Provider value={{ accessToken, setAccessToken, user, setUser, loading, setLoading }}>
       {children}
     </AuthContext.Provider>
   );
