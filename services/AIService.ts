@@ -6,15 +6,13 @@ class AIService {
   private model: GenerativeModel;
 
   constructor() {
-    this.genAI = new GoogleGenerativeAI(
-      process.env.EXPO_PUBLIC_GEMINI_API_KEY as string
-    );
-    // Initialize model once in constructor for efficiency
+    this.genAI = new GoogleGenerativeAI("AIzaSyCWFIOT_qNWw1yYPgFODuvpK774jTPEYcw");
+
     this.model = this.genAI.getGenerativeModel({
       model: "gemini-2.5-flash-lite",
       generationConfig: {
         responseMimeType: "application/json",
-        temperature: 0.1, // Keep temperature low for structured data extraction
+        temperature: 0.1,
       },
     });
   }

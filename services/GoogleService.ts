@@ -1,9 +1,8 @@
-const CALENDAR_API_URL = "[https://www.googleapis.com/calendar/v3/calendars/primary/events](https://www.googleapis.com/calendar/v3/calendars/primary/events)";
-const TASKS_API_URL = "[https://www.googleapis.com/tasks/v1/lists/@default/tasks](https://www.googleapis.com/tasks/v1/lists/@default/tasks)";
+const CALENDAR_API_URL = "https://www.googleapis.com/calendar/v3/calendars/primary/events";
+const TASKS_API_URL = "https://www.googleapis.com/tasks/v1/lists/@default/tasks";
 
 export const GoogleService = {
   saveEvent: async (eventData: any, token: string) => {
-    // --- FIX: Ensure we use ISO strings for Google API ---
     const startISO = eventData.startTime instanceof Date ? eventData.startTime.toISOString() : eventData.startTime;
     const endISO = eventData.endTime instanceof Date ? eventData.endTime.toISOString() : eventData.endTime;
 
@@ -17,7 +16,7 @@ export const GoogleService = {
         summary: eventData.title,
         location: eventData.location || "No Location Provided",
         description: "Organized by PandaPlanner 🐼",
-        start: { dateTime: startISO }, // Let Google detect timezone from ISO string
+        start: { dateTime: startISO },
         end: { dateTime: endISO },
       }),
     });
@@ -34,9 +33,18 @@ export const GoogleService = {
       body: JSON.stringify({
         title: reminderData.title,
         notes: reminderData.location || "Panda Reminder",
-        due: reminderData.reminderTime, 
+        due: reminderData.reminderTime,
       }),
     });
     return response.json();
-  }
+  },
+
+  fetchUpcomingEvents: async (token: string) => {
+    const response = await fetch(
+      `${CALENDAR_API_URL}?timeMin=${new Date().toISOString()}&singleEvents=true&orderBy=startTime&maxResults=100`,
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+    const data = await response.json();
+    return data.items ?? [];
+  },
 };

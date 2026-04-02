@@ -2,6 +2,7 @@ import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from "expo-router";
+import { GoogleAuthProvider, signInWithCredential } from "firebase/auth";
 import { useEffect, useRef, useState } from "react";
 import { ActivityIndicator, Alert, Animated, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 
@@ -12,7 +13,7 @@ import * as WebBrowser from 'expo-web-browser';
 import AppInput from "../(components)/AppInput";
 import PrimaryButton from "../(components)/PrimaryButton";
 import { useAuth } from '../../context/AuthContext';
-import FirebaseService from "../../services/FirebaseService";
+import FirebaseService, { auth } from "../../services/FirebaseService";
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -56,7 +57,6 @@ export default function LoginScreen() {
     iosClientId: '1015755840124-umd5c4l4sqlf2ufhla4nm4kvqg23bhoa.apps.googleusercontent.com',
     androidClientId: '1015755840124-gr1nfvsb958vl28rqt207g0keupupdvp.apps.googleusercontent.com',
     webClientId: '1015755840124-gn1ob4kv3gpt99dnthfvfacuh50af14b.apps.googleusercontent.com',
-    useProxy: true,
     responseType: 'token id_token',
     usePKCE: false,
     extraParams: {
@@ -81,11 +81,11 @@ export default function LoginScreen() {
     }
   }, [request])
 
-  useEffect(() => {
-    if (response?.type === 'success') {
-      const { id_token, access_token } = response.params;
+useEffect(() => {
+  if (response?.type === 'success') {
+    const { id_token, access_token } = response.params;
 
-      console.log("Tokens received:", { id_token: !!id_token, access_token: !!access_token });
+    console.log("Tokens received:", { id_token: !!id_token, access_token: !!access_token });
 
       if (id_token) {
         setIsLoading(true);
@@ -106,7 +106,7 @@ export default function LoginScreen() {
         console.error("No ID Token found in response.");
       }
     }
-  }, [response]);
+  };
 
   const handleLogin = async () => {
     if (!email || !password) {
