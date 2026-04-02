@@ -157,13 +157,18 @@ function DateTimeField({
                 <Text style={dtStyles.doneText}>Done</Text>
               </Pressable>
             </View>
-            {/* writes to draft only — parent not touched until Done */}
-            <DateTimePicker
-              value={draft}
-              mode={mode}
-              display="spinner"
-              onChange={(_: any, selected?: Date) => { if (selected) setDraft(selected); }}
-            />
+            {/* iOS spinner requires an explicit height — without it the picker renders at 0px */}
+            <View style={{ height: 216 }}>
+              <DateTimePicker
+                value={draft}
+                mode={mode}
+                display="spinner"
+                textColor="#3A3A3A"
+                themeVariant="light"
+                style={{ flex: 1 }}
+                onChange={(_: any, selected?: Date) => { if (selected) setDraft(selected); }}
+              />
+            </View>
           </View>
         </View>
       </Modal>
