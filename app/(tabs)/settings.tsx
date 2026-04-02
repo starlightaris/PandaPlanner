@@ -14,12 +14,18 @@ import { useAuth } from '../../context/AuthContext';
 import FirebaseService, { PlannerEvent } from "../../services/FirebaseService";
 import { GoogleService } from "../../services/GoogleService";
 
+// ─── NOTIFICATION HANDLER ────────────────────────────────────────────────────
+
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowAlert: true,
+    shouldPlaySound: true,
+    shouldSetBadge: false,
+  }),
+});
+
 // ─── NOTIFICATION HELPERS ────────────────────────────────────────────────────
 
-/**
- * Requests notification permissions from the OS.
- * Returns true if granted, false otherwise.
- */
 async function requestNotificationPermissions(): Promise<boolean> {
   const { status: existingStatus } = await Notifications.getPermissionsAsync();
   if (existingStatus === 'granted') return true;

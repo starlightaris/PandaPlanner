@@ -89,16 +89,16 @@ useEffect(() => {
 
     if (id_token) {
       const credential = GoogleAuthProvider.credential(id_token);
-      
+
       setIsLoading(true);
       signInWithCredential(auth, credential)
         .then(async (userCredential) => {
           console.log("Firebase Auth Success!");
-          
+
           // Set the user and token in your context
           setUser(userCredential.user);
           setAccessToken(access_token || null);
-          
+
           // Optional: Sync user data to Firestore
           await FirebaseService.loginWithGoogle(id_token);
 
