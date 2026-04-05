@@ -87,24 +87,46 @@ useEffect(() => {
 
     console.log("Tokens received:", { id_token: !!id_token, access_token: !!access_token });
 
-      if (id_token) {
-        setIsLoading(true);
-        FirebaseService.loginWithGoogle(id_token)
-          .then((user) => {
-            setUser(user);
-            setAccessToken(access_token);
-            setLoading(false);
-            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-            router.replace("/(tabs)");
-          })
-          .catch((error) => {
-            console.error("Firebase Auth Error:", error);
-            Alert.alert("Login Failed", "Authenticated with Google, but couldn't sync with PandaPlanner.");
-          })
-          .finally(() => setIsLoading(false));
-      } else {
-        console.error("No ID Token found in response.");
-      }
+    if (id_token) {
+      const credential = GoogleAuthProvider.credential(id_token);
+
+      setIsLoading(true);
+      signInWithCredential(auth, credential)
+        .then(async (userCredential) => {
+          console.log("Firebase Auth Success!");
+
+          // Set the user and token in your context
+          setUser(userCredential.user);
+          setAccessToken(access_token || null);
+
+          // Optional: Sync user data to Firestore
+          await FirebaseService.loginWithGoogle(id_token);
+
+          router.replace("/(tabs)");
+        })
+        .catch((error) => {
+          console.error("Firebase Auth Error:", error);
+          Alert.alert("Login Failed", "Could not connect to Firebase.");
+        })
+        .finally(() => setIsLoading(false));
+    } else {
+      console.error("No ID Token found");
+    }
+  }
+}, [response]);
+
+  const handleGoogleLogin = async (token: string) => {
+    setIsLoading(true);
+    try {
+      const userProfile = await FirebaseService.loginWithGoogle(token);
+      setUser(userProfile);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      router.replace("/(tabs)");
+    } catch (error) {
+      console.error("Firebase Auth Error:", error);
+      Alert.alert("Login Failed", "Authenticated with Google, but couldn't sync with PandaPlanner.");
+    } finally {
+      setIsLoading(false);
     }
   };
 
